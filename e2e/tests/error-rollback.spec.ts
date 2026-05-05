@@ -1,9 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { resetServerState } from "./_helpers";
 
-test.beforeEach(async ({ request, page }) => {
+test.beforeEach(async ({ request }) => {
   await resetServerState(request);
-  await page.addInitScript(() => window.localStorage.clear());
 });
 
 test("server 500 on create rolls back optimistic UI and toast retries successfully", async ({

@@ -7,7 +7,9 @@
   --accent: #2563eb;
   --accent-contrast: #ffffff;
   --error: #b91c1c;
-  --completed: #9ca3af;
+  /* WCAG AA: 7.21:1 against --surface (#f7f7f8). Strikethrough remains the
+     non-color completion signal. */
+  --completed: #52525b;
 }
 
 *,

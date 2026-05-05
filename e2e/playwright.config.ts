@@ -24,7 +24,12 @@ const webServer: PlaywrightTestConfig["webServer"] = process.env.SKIP_WEBSERVER
 
 export default defineConfig({
   testDir: "./tests",
-  fullyParallel: true,
+  // v1 has no per-user data isolation — every test shares the same SQLite
+  // backend. Run serially so resetServerState in beforeEach owns the database
+  // for the duration of each test. Once auth + per-user partitioning land in
+  // v2, this can switch back to fullyParallel: true.
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [["html"], ["line"]] : [["list"]],

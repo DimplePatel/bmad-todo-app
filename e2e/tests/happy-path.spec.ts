@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { addTodo, resetServerState } from "./_helpers";
 
-test.beforeEach(async ({ request, page }) => {
+test.beforeEach(async ({ request }) => {
   await resetServerState(request);
-  await page.addInitScript(() => window.localStorage.clear());
+  // Playwright isolates browser contexts per test, so localStorage already
+  // starts clean. We deliberately do NOT use addInitScript to clear it —
+  // that script would run on page.reload() too and break persistence tests.
 });
 
 test("happy path: create, complete, delete, clear completed", async ({

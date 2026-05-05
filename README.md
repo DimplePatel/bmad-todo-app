@@ -95,7 +95,7 @@ docker-compose.override.yml
 Prerequisites: Node 20+, npm, Docker (optional).
 
 ```bash
-# Install everything (one shot, root)
+# Install everything
 npm install
 
 # Run unit + integration tests
@@ -107,7 +107,7 @@ npm run dev:backend      # http://localhost:3001
 npm run dev:frontend     # http://localhost:5173 (proxied to backend)
 
 # Run E2E (assumes both dev servers are reachable; or let Playwright start them)
-npx playwright install chromium    # one-time
+npx playwright install   # one-time
 npm run e2e
 
 # Or, one-command Docker stack (dev profile, ports exposed)
