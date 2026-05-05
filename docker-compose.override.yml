@@ -1,0 +1,17 @@
+# Dev-only overrides. Compose merges this on top of docker-compose.yml by default
+# (suppress with `docker compose -f docker-compose.yml up`).
+#
+# - Loosens NODE_ENV so CORS_ORIGIN='*' is permitted for local debugging.
+# - Exposes the backend port directly on the host so curl/Postman can hit it.
+# - Maps the frontend to a friendly local port.
+
+services:
+  backend:
+    environment:
+      NODE_ENV: development
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+
+  frontend:
+    ports:
+      - "${FRONTEND_PORT:-5173}:8080"

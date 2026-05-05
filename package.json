@@ -1,0 +1,32 @@
+{
+  "name": "todo-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "BMAD-driven Todo app: React + Node/Express + SQLite",
+  "workspaces": [
+    "packages/*",
+    "backend",
+    "frontend",
+    "e2e"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "npm test --workspaces --if-present",
+    "test:backend": "npm test --workspace=backend",
+    "test:frontend": "npm test --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "e2e": "npm run test --workspace=e2e",
+    "e2e:install": "npx playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "eslint": "^9.10.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  }
+}
