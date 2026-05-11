@@ -164,7 +164,7 @@ These are the gaps that showed up across multiple files. I'm listing them by *ca
 | **WCAG color contrast** | `--completed: #9ca3af` on `--surface: #f7f7f8` ≈ 2.5:1 contrast — well below WCAG AA's 4.5:1. Claude defaulted to a muted-gray palette without computing contrast. | axe caught it. Changed to `#52525b` (≈ 7.21:1, AA + AAA). |
 | **Optimistic temp-id race** | `addTodo` helper waited for `POST 201` (Playwright's view) but not for React Query's `onSuccess` to swap the optimistic `temp-...` row for the server's UUID-keyed row. Subsequent actions captured the temp id; PATCH/DELETE 404'd. | Wait for `input[type="checkbox"][id^="cb-temp-"]` count to become 0 before continuing. |
 | **State coverage at the UI layer** | First a11y suite had axe scans on the empty, populated, and active-filter states only — missed "row with focused delete button," "filter chip focused via keyboard," "error banner shown." | I asked Claude to add 3 a11y state-coverage tests. axe now runs against 11 distinct UI states across the suite. |
-| **Test inventory in two places** | Test-strategy.md and coverage.md both had per-spec test breakdowns. They drifted. | Re-scoped: test-strategy.md owns inventory + traceability; coverage.md owns source-file %. |
+| **Test inventory in two places** | Test-strategy.md and coverage.md both had duplicated per-spec test breakdowns, that were out of date to each other. | Re-scoped: test-strategy.md owns inventory + traceability; coverage.md owns source-file %. |
 | **Lifecycle tests for stateful UI** | First ToastHost test only covered "show toast → click action." Missed "hover pauses dismissal timer," "stacked toasts," "action button focus visible." | Added `ToastHost.test.tsx` with all four. |
 
 ### What I would have wanted but didn't include
@@ -218,7 +218,7 @@ These weren't bugs per se but they were debugging-in-spirit — finding gaps bet
 | **D-A7** | `clearCompleted` mutation test had a synchronous-assert-after-await timing race. | Replaced with Deferred pattern — server holds the response until the test releases it, asserts intermediate cache state in between. |
 
 ### Patterns I'd flag about Claude's debugging
-
+q
 - **D12 was Claude's code from the start.** Claude wrote the original `TodoItem.onDeleteClick` with the `useEffect`-cleanup-clears-timer pattern. A senior dev would have flagged "scheduling work in component state that's about to unmount" as a code smell on first read. Claude wrote it; Claude's own code review missed it; only a passing-then-failing e2e test caught it. This is the single biggest argument in this project for keeping the e2e gate non-optional.
 - **D13 cost two extra rounds because Claude misread the failure.** "Element not found" + "the previous run said `2 × locator resolved to ...unchecked`" should have been a hint that the *first* run was stale-element and *previous* runs were actually-not-toggling — two different bugs. Instead Claude assumed it was the same bug and kept proposing variations. Me pasting fresh output every time was the only thing that eventually surfaced the difference.
 - **The convergence asymmetry.** Claude's "try the next plausible fix" loop converges fast on familiar bugs and slowly on unfamiliar ones. Asking *"what new information is in this failure that wasn't in the last one?"* before proposing the next fix would have shortened both D13 and parts of D11.
