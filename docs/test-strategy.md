@@ -27,11 +27,11 @@ Headline counts:
 
 | Layer | Tool | Files | Cases |
 |---|---|---:|---:|
-| Backend unit | Vitest | 3 | 23 |
-| Backend integration | Vitest + Supertest | 3 | 24 |
+| Backend unit | Vitest | 3 | 25 |
+| Backend integration | Vitest + Supertest | 3 | 25 |
 | Frontend (unit + integration) | Vitest + RTL + MSW | 9 | 46 |
 | E2E (real browser) | Playwright + axe-playwright | 8 | 19 |
-| **Total** | — | **23** | **112** |
+| **Total** | — | **23** | **115** |
 
 Per-test → PRD requirement mapping lives in §11 of this document.
 
@@ -267,13 +267,14 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 
 ### 11.1 Backend — unit
 
-#### `backend/tests/unit/config.test.ts` — 4 cases
+#### `backend/tests/unit/config.test.ts` — 5 cases
 
 | Test | Requirements |
 |---|---|
 | `loadConfig > returns defaults when env is empty` | NFR5 |
 | `loadConfig > parses CORS_ORIGIN as a comma-separated allowlist` | NFR9 |
 | `loadConfig > rejects '*' in production` | NFR9 |
+| `loadConfig > rejects empty CORS_ORIGIN in production (B1)` | NFR9 |
 | `loadConfig > rejects invalid PORT` | NFR5, NFR9 |
 
 #### `backend/tests/unit/schema.test.ts` — 9 cases
@@ -290,7 +291,7 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `UpdateTodoBody > accepts both` | FR4 |
 | `UpdateTodoBody > rejects empty body` | FR13 |
 
-#### `backend/tests/unit/repository.test.ts` — 10 cases
+#### `backend/tests/unit/repository.test.ts` — 11 cases
 
 | Test | Requirements |
 |---|---|
@@ -300,6 +301,7 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `SqliteTodoRepository > update() > updates title and refreshes updatedAt` | FR4 |
 | `SqliteTodoRepository > update() > toggles completed` | FR4 |
 | `SqliteTodoRepository > update() > returns null when id missing` | FR13 |
+| `SqliteTodoRepository > update() > returns null when the row vanishes between findById and UPDATE (B2)` | FR4, FR13 (concurrent-delete race) |
 | `SqliteTodoRepository > delete() > returns true on hit` | FR6 |
 | `SqliteTodoRepository > delete() > returns false on miss` | FR13 |
 | `SqliteTodoRepository > deleteCompleted() > deletes only completed rows and returns the count` | FR8 |
@@ -315,7 +317,7 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `notFoundHandler (unknown routes) > GET /api/bogus returns 404 with {error:'Not found'}` | FR13 |
 | `notFoundHandler (unknown routes) > POST to an unknown route also yields 404` | FR13 |
 
-#### `backend/tests/integration/todos.test.ts` — 20 cases
+#### `backend/tests/integration/todos.test.ts` — 21 cases
 
 | Test | Requirements |
 |---|---|
@@ -326,6 +328,7 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `POST /api/todos > rejects whitespace-only title (400)` | FR2, FR13 |
 | `POST /api/todos > rejects > 200 chars (400)` | FR1, FR13 |
 | `POST /api/todos > rejects non-JSON body (400)` | FR13, NFR9 |
+| `POST /api/todos > rejects oversized JSON body with 413 (B5)` | FR13, NFR9 |
 | `PATCH /api/todos/:id > toggles completion (200)` | FR4, FR12 |
 | `PATCH /api/todos/:id > updates title (200)` | FR4, FR12 (forward-compat) |
 | `PATCH /api/todos/:id > 404 on unknown id` | FR13 |
@@ -504,11 +507,11 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 
 | Layer | Files | Test cases |
 |---|---:|---:|
-| Backend unit | 3 | 23 |
-| Backend integration | 3 | 24 |
+| Backend unit | 3 | 25 |
+| Backend integration | 3 | 25 |
 | Frontend | 9 | 46 |
 | E2E | 8 | 19 |
-| **Total** | **23** | **112** |
+| **Total** | **23** | **115** |
 
 ### 11.6 Requirements with no direct test
 
