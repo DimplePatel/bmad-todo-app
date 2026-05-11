@@ -52,6 +52,7 @@ Source-code coverage numbers (per-file %s, remaining gaps, how to regenerate) li
 | E2E accessibility | **axe-playwright** | Runs axe-core inside the page during E2E; the toughest WCAG rules (color contrast, ARIA validity) are checked here |
 | E2E architecture | **POM + fixtures** | `e2e/pages/TodoPage.ts` + `e2e/tests/_fixtures.ts` — see §6 |
 | Locator hierarchy | **role > label > data-testid > CSS** | Playwright's recommended ordering; CSS only as last resort. `data-testid` on `EmptyState`, `TodoInput`'s error, `Footer`'s counter |
+| Agent debug (optional) | **Playwright MCP** | Live browser-driving channel for Claude during failure triage — structured aria-snapshots, click/type/inspect, network introspection. Not part of the regression suite or CI; the e2e gate above remains the source of truth. See `docs/ai-integration-log.md` §2 for the comparison. |
 
 ---
 

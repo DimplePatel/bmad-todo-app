@@ -8,7 +8,7 @@ A single-user Todo app built spec-first via the **BMAD-METHOD** (Breakthrough Me
 - **Backend:** Node 20 + Express 4 + TypeScript, Zod validation, helmet/cors, `better-sqlite3`
 - **Database:** SQLite on a named Docker volume (`todo-db`)
 - **Containers:** Multi-stage Dockerfiles, BuildKit cache mounts, non-root users (`node` UID 1000 / `nginx` UID 101), digest-pinned base images
-- **E2E:** Playwright + axe-playwright, organised via a Page Object Model
+- **E2E:** Playwright + axe-playwright, organised via a Page Object Model. Companion **Playwright MCP** (`@playwright/mcp`) available for agent-driven debug sessions — see [`docs/ai-integration-log.md`](docs/ai-integration-log.md) §2.
 - **Unit / integration:** Vitest + RTL + Supertest
 
 ## Project layout

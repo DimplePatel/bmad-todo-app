@@ -65,7 +65,8 @@ This session ran with a broad MCP catalogue available but Claude used only a nar
 |---|---|---|
 | **`workspace.bash`** | **Yes — heavily** | `npm install`, `vitest run --coverage`, `tsc --noEmit`, `python3 -c "import yaml"` for compose linting, `find`/`ls` for diagnostics. Without bash, none of the QA-report numbers would exist as measurements. It also caught at least three would-be-flaky TS errors before they ever reached me (Claude type-checked e2e + frontend in `/tmp/bmad-*` after every code change). |
 | **File tools** (`Read` / `Write` / `Edit`) | Yes — every artifact | Direct file authoring. Write/Edit land on local disk in my mounted folder; they do not commit, push, or notify a remote. |
-| **Postman MCP, Chrome DevTools MCP, Playwright MCP** | **Not available** | Referenced in my original task list but not installed in this environment. Substituted: Supertest for API contract checks, Lighthouse CLI on my machine for performance traces, Playwright with `webServer` auto-start for browser automation. The corresponding QA reports document the manual procedures explicitly. |
+| **Playwright MCP** ([`@playwright/mcp`](https://playwright.dev/docs/getting-started-mcp)) | **Installed 2026-05-12** — too late for the initial debugging rounds, available going forward | I added it to my Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` → `mcpServers.playwright`). The MCP doesn't replace the `@playwright/test` suite — it gives Claude a live browser-driving channel for debugging and exploration. See "Playwright MCP vs the existing Playwright suite" below for the comparison. |
+| **Postman MCP, Chrome DevTools MCP** | **Not available** | Referenced in my original task list but not installed. Substituted: Supertest for API contract checks (in-process Express tests), Lighthouse CLI on my machine for performance traces. The corresponding QA reports document the manual procedures explicitly. |
 
 ### How `workspace.bash` actually helped
 
@@ -75,7 +76,35 @@ Bash also did real measurement work — the `autocannon` results (5.04 ms avg la
 
 ### What `workspace.bash` *couldn't* do once the work moved to my machine
 
-Bash sees the sandbox, not my laptop. Once e2e iteration started, every Playwright failure came to Claude as pasted text — it couldn't view the screenshot/video Playwright records on failure. That mattered: in D13, anyone watching the recorded video would have *seen* the checkbox visibly toggle, immediately ruling out "click didn't fire." Without that signal, Claude burned two rounds on the wrong hypothesis. A real Chrome DevTools MCP or Playwright MCP that could surface artifacts (`aria-snapshot`, screenshots, traces) would have shortened most of the e2e rounds materially.
+Bash sees the sandbox, not my laptop. Once e2e iteration started, every Playwright failure came to Claude as pasted text — it couldn't view the screenshot/video Playwright records on failure. That mattered: in D13, anyone watching the recorded video would have *seen* the checkbox visibly toggle, immediately ruling out "click didn't fire." Without that signal, Claude burned two rounds on the wrong hypothesis. The Playwright MCP (now installed) is the direct fix for this gap; the next subsection lays out what changes.
+
+### Playwright MCP vs the existing Playwright suite
+
+These are two different things solving two different problems. The `@playwright/test` suite under `e2e/` is the **automated regression layer** — 19 spec-driven test cases that run unattended in CI on every push, gate merges, and produce HTML reports. The Playwright MCP is an **agent-driven live-debug layer** — a set of tools that let Claude open a real browser, snapshot the accessibility tree, click/type/inspect on demand. They co-exist; neither replaces the other.
+
+The differences that actually matter for this project:
+
+| Concern | Existing `@playwright/test` suite | Playwright MCP (`@playwright/mcp`) |
+|---|---|---|
+| **Primary job** | Deterministic regression coverage — same 19 cases run the same way every time. | Exploratory automation Claude drives in real time, mid-conversation. |
+| **Authored by** | Me + Claude, committed in `e2e/tests/*.spec.ts`. | Nobody — there's no test file. Each interaction is a tool call decided in the moment. |
+| **Where it runs** | My laptop or CI's Ubuntu runner via `npm run e2e`. | My laptop, in a real Chrome window launched by the MCP server (headed by default; `--headless` for unattended). |
+| **How Claude sees the page** | It doesn't. Pre-MCP, Claude saw whatever I pasted from the terminal — usually a single failure line + a stack trace. Screenshots, videos, and traces were on disk but invisible to it. | Structured **accessibility-tree snapshots** with element refs (e.g. `[ref=e10]`). LLM-friendly, fast, deterministic. No vision model required. Per the docs: snapshots look like `- checkbox "Toggle Todo" [ref=e10]` — exactly the signal that would have ruled out D13's wrong hypothesis in one round. |
+| **Interaction surface** | The page object model (`TodoPage`, `TodoRow`) + Playwright's locator API, hard-coded in spec files. | Direct tool calls: navigate, click, type, screenshot, keyboard, hover, drag-drop, dialog accept/dismiss, tab management. Plus a `browser_run_code` tool for one-off Playwright snippets when a single tool isn't enough. |
+| **Network introspection** | Possible via `page.route()`, but only inside a spec file — Claude can't see live request/response pairs from a failing test. | First-class: list requests since page load, mock routes with URL patterns, read browser console messages. Directly useful for B3-class optimistic-UI bugs where the question is "did this PATCH actually fire?". |
+| **State management** | Each test resets server state via `_helpers.resetServerState`; per-test isolation via Playwright contexts. | Save / restore cookies + localStorage; cookie list/get/set/delete. Useful when an agent wants to "log in once and explore from there." |
+| **Concurrency** | `workers: 1, fullyParallel: false` because v1 has shared SQLite. | One browser session per MCP server instance. Concurrency is a function of how many tool calls Claude issues — irrelevant at the test-suite level. |
+| **a11y** | `axe-playwright` baked into specs — 12 axe scans across 12 UI states, asserted with `checkA11y`. | The MCP itself doesn't run axe, but its aria-snapshots make accessibility issues visible to the agent at the same level axe would catch them. Complement, not replacement. |
+| **CI presence** | Yes — runs every push in `.github/workflows/test.yml`. | No — MCPs are interactive tools for a connected agent. The CI gate stays on the spec suite. |
+| **What it would have changed about this project** | n/a — it *is* the project's e2e layer. | D11 would have collapsed from 5 debug rounds to ~2. D12 (the deferred-DELETE bug) would still have been caught by the test suite, but Claude could have inspected the live DOM + network panel and root-caused it in one round instead of three. D13 (stale aria-label) would not have happened — Claude would have seen the *new* aria-label in the next snapshot. |
+
+Why both, not one or the other:
+
+- The MCP gives Claude eyes; the spec suite gives the CI gate teeth. A merge that passes MCP-driven exploration but fails the spec suite is still a failure; a merge that passes the spec suite but couldn't be quickly verified by hand is still a merge.
+- The MCP can't replace `@playwright/test` in CI — there's no agent inside a GitHub Actions runner deciding what to click. Conversely, the spec suite can't replace the MCP for debugging — it tells you *that* something broke, not *what is currently visible* in the failing state.
+- Worth keeping in mind: the MCP runs a real browser on my machine. It needs the same Chromium install the spec suite uses (`npx playwright install --with-deps chromium`, already done). It does *not* introduce a new dependency on Playwright in production — the MCP is purely a dev-time tool.
+
+For future debug rounds, the workflow I'd push for is: spec suite fails in CI → I rerun locally with `--headed` → if the failure is reproducible, I open a Claude session and let it use the Playwright MCP to inspect the live state at the failure point. That's the shortest cycle this project can have without a Chrome DevTools MCP also in place.
 
 ---
 
@@ -202,6 +231,6 @@ This project was small and rule-driven enough that a single Claude session could
 
 If this project gets a v1.x, the friction items worth addressing:
 
-- **Trace surfacing for e2e MCP.** A Playwright or Chrome DevTools MCP that pipes `aria-snapshot` + screenshot + last-100-network-lines into the agent context on test failure would shorten e2e debug rounds by ~half, based on this session's experience.
+- ~~**Trace surfacing for e2e MCP.** A Playwright or Chrome DevTools MCP that pipes `aria-snapshot` + screenshot + last-100-network-lines into the agent context on test failure would shorten e2e debug rounds by ~half, based on this session's experience.~~ **Closed 2026-05-12** — installed the Playwright MCP (`@playwright/mcp`); see §2 for the comparison to the spec suite. Chrome DevTools MCP would still be additive (deeper network introspection, performance traces) but is no longer the critical gap.
 - **Run Lighthouse + axe in CI.** Both currently require the running stack and Chrome on my laptop. Lighthouse-CI Action or Playwright-driven Lighthouse against the compose stack would fold them into the same `nfr7` CI job pattern that NFR7 now uses.
 - **Pre-commit hook for `npm run typecheck`.** Three of the seven sandbox-period bugs were caught by `tsc --noEmit`. Local pre-commit would catch them before a push.
