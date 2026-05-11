@@ -62,7 +62,7 @@ function unwrap<T>(parser, input) {
 | `DELETE /api/todos?completed=true` | `BulkDeleteQuery` | `completed` literal `"true"` |
 | `GET /api/todos`, `GET /api/health` | — | no input |
 
-Verified by `tests/unit/schema.test.ts` (9 cases) + `tests/integration/todos.test.ts` (25 cases including every 400 path and the B5 oversized-body 413).
+Verified by `tests/unit/schema.test.ts` (9 cases) + `tests/integration/todos.test.ts` (27 cases including every 400 path, the B5 oversized-body 413, the B2 race-derived 404, and explicit CORS allowlist tests).
 
 ### 2. SQL injection
 

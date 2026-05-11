@@ -121,7 +121,7 @@ Prerequisites: Node 20 (LTS), npm, Docker Desktop / OrbStack / Colima.
 npm install
 
 # Run unit + integration tests
-npm run test:backend         # Vitest + Supertest — 50 cases
+npm run test:backend         # Vitest + Supertest — 57 cases
 npm run test:frontend        # Vitest + RTL + MSW — 46 cases
 
 # Coverage (frontend uses @vitest/coverage-v8)
@@ -193,7 +193,7 @@ Environment variables (see `.env.example`):
 | [`docs/project-brief.md`](docs/project-brief.md) | Analyst output — problem, scope, risks, open questions |
 | [`docs/prd.md`](docs/prd.md) | PM output — 15 FRs + 10 NFRs, API contract, 23 stories |
 | [`docs/architecture.md`](docs/architecture.md) | Architect output — system diagram, layered backend, RepoContext, deployment topology |
-| [`docs/test-strategy.md`](docs/test-strategy.md) | QA output — pyramid, tooling, **§11 per-test → PRD requirement traceability (115 mappings)** |
+| [`docs/test-strategy.md`](docs/test-strategy.md) | QA output — pyramid, tooling, **§11 per-test → PRD requirement traceability (122 mappings)** |
 | [`docs/epics/`](docs/epics/) + [`docs/stories/`](docs/stories/) | E1–E4 sharded; 23 Dev-ready stories |
 | [`docs/qa/README.md`](docs/qa/README.md) | QA report index with quick re-verification commands |
 | [`docs/qa/coverage.md`](docs/qa/coverage.md) | Source-file % + remaining gaps (gate enforced in CI) |
@@ -208,14 +208,17 @@ Environment variables (see `.env.example`):
 Layer                       Files   Tests   Notes
 -------------------------- ------- ------- -----------------------------------------
 Backend unit                  3      25     config, schema, repository
-Backend integration           3      25     health (+ notFoundHandler), todos, persistence
+Backend integration           3      32     health (+ notFoundHandler + NFR10 logger),
+                                            todos (+ B2 race, no-op timestamp,
+                                            combined PATCH, CORS allowlist,
+                                            helmet on /api/todos), persistence
 Frontend (Vitest + RTL)       9      46     incl. ToastHost, pendingDeletes, api client,
                                             tab-order (NFR4), 3 state-coverage a11y tests
 E2E (Playwright)              8      19     smoke, happy-path, filter-persistence,
                                             undo-delete, delete-to-empty, error-rollback,
                                             responsive (NFR3), a11y (11 axe scans)
                               ---    ---
-Total                         23     115
+Total                         23     122
 ```
 
 Every test case is mapped to its PRD FR/NFR ID in [`docs/test-strategy.md`](docs/test-strategy.md) **§11**. The forward map (requirement → tests) is in §5 of the same doc.

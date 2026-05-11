@@ -28,10 +28,10 @@ Headline counts:
 | Layer | Tool | Files | Cases |
 |---|---|---:|---:|
 | Backend unit | Vitest | 3 | 25 |
-| Backend integration | Vitest + Supertest | 3 | 25 |
+| Backend integration | Vitest + Supertest | 3 | 32 |
 | Frontend (unit + integration) | Vitest + RTL + MSW | 9 | 46 |
 | E2E (real browser) | Playwright + axe-playwright | 8 | 19 |
-| **Total** | — | **23** | **115** |
+| **Total** | — | **23** | **122** |
 
 Per-test → PRD requirement mapping lives in §11 of this document.
 
@@ -121,7 +121,7 @@ Every PRD requirement traces to at least one test scenario. Reading: **U** = uni
 | FR9 | Empty state | Frontend `App.test.tsx` (U), E2E `delete-to-empty`, `a11y` empty-state |
 | FR10 | Loading state on initial fetch | Frontend `App.test.tsx` |
 | FR11 | Non-blocking error toast + retry + rollback | Frontend `mutations.test.tsx` (U/I 500 + 404 toggle), E2E `error-rollback` (500 on create + 404 on toggle) |
-| FR12 | REST API for CRUD + bulk delete | Backend `todos.test.ts` (I, 20 cases covering every method/path) |
+| FR12 | REST API for CRUD + bulk delete | Backend `todos.test.ts` (I, 27 cases covering every method × path combination, plus B5 oversized body, B2 race, no-op PATCH, combined-field PATCH, helmet headers, and CORS allowlist — see §11.2 for the per-test breakdown) |
 | FR13 | Input validation + structured errors | Backend `schema.test.ts` (U, 9 cases), `todos.test.ts` (I, every 400 path), `health.test.ts` (notFoundHandler) |
 | FR14 | Persistent SQLite on volume | Backend `persistence.test.ts` (I — boot, write, dispose, re-boot, read) |
 | FR15 | Items-left counter | Frontend `Footer.test.tsx` (U), E2E `happy-path` |
@@ -139,7 +139,7 @@ Every PRD requirement traces to at least one test scenario. Reading: **U** = uni
 | NFR7 | Compose-up < 60 s | `scripts/test-compose-up-time.sh` — invokes `docker compose up --wait --wait-timeout 60`, times the wall-clock, fails if exceeded. Self-provisions `.env` from `.env.example` if missing (and removes it again on cleanup). Run with `npm run test:nfr7` | **Wired in CI** — `.github/workflows/test.yml` runs it in the `nfr7` job on every push |
 | NFR8 | Extensible for `userId` | Repository signature passes opaque options; documented in architecture §5.4 | No test; verified by code review |
 | NFR9 | Security baseline | Backend `todos.test.ts` "helmet headers" case (I); CORS prod guard in `config.test.ts` (U); structured greps in `docs/qa/security-review.md` | |
-| NFR10 | Structured request logs | `health.test.ts` (I) — logger emits exactly one JSON line per request with required fields | |
+| NFR10 | Structured request logs | `health.test.ts` (I) "requestLogger (NFR10) > emits exactly one JSON line per request with required fields" — spies on `process.stdout.write`, asserts shape: `{ts, level, method, path, status, duration_ms}`. | |
 
 ---
 
@@ -309,15 +309,16 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 
 ### 11.2 Backend — integration
 
-#### `backend/tests/integration/health.test.ts` — 3 cases
+#### `backend/tests/integration/health.test.ts` — 4 cases
 
 | Test | Requirements |
 |---|---|
 | `GET /api/health > returns 200 and {status:'ok'}` | NFR7 (Docker healthcheck endpoint) |
 | `notFoundHandler (unknown routes) > GET /api/bogus returns 404 with {error:'Not found'}` | FR13 |
 | `notFoundHandler (unknown routes) > POST to an unknown route also yields 404` | FR13 |
+| `requestLogger (NFR10) > emits exactly one JSON line per request with required fields` | NFR10 |
 
-#### `backend/tests/integration/todos.test.ts` — 21 cases
+#### `backend/tests/integration/todos.test.ts` — 27 cases (+ 2 in the sibling CORS describe — see below)
 
 | Test | Requirements |
 |---|---|
@@ -331,6 +332,9 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `POST /api/todos > rejects oversized JSON body with 413 (B5)` | FR13, NFR9 |
 | `PATCH /api/todos/:id > toggles completion (200)` | FR4, FR12 |
 | `PATCH /api/todos/:id > updates title (200)` | FR4, FR12 (forward-compat) |
+| `PATCH /api/todos/:id > updates both title and completed in one request (200)` | FR4, FR12 |
+| `PATCH /api/todos/:id > no-op PATCH still advances updated_at (documents current behavior)` | FR4 (contract pin) |
+| `PATCH /api/todos/:id > returns 404 when the row vanishes between findById and UPDATE (B2 / HTTP layer)` | FR4, FR13 (concurrent-delete race) |
 | `PATCH /api/todos/:id > 404 on unknown id` | FR13 |
 | `PATCH /api/todos/:id > 400 on non-UUID id` | FR13 |
 | `PATCH /api/todos/:id > 400 on empty body` | FR13 |
@@ -341,7 +345,10 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `DELETE /api/todos?completed=true > returns 0 when nothing completed` | FR8 |
 | `DELETE /api/todos?completed=true > 400 when ?completed is missing` | FR13 |
 | `DELETE /api/todos?completed=true > 400 when ?completed=false` | FR13 |
-| `security headers > sets helmet defaults` | NFR9 |
+| `security headers > sets helmet defaults on /api/health` | NFR9 |
+| `security headers > sets helmet defaults on /api/todos` | NFR9 |
+| `CORS allowlist (NFR9, B1) > reflects an allowed origin on a preflight request` | NFR9 |
+| `CORS allowlist (NFR9, B1) > does NOT echo an Allow-Origin header for a disallowed origin` | NFR9 |
 
 #### `backend/tests/integration/persistence.test.ts` — 1 case
 
@@ -508,10 +515,10 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | Layer | Files | Test cases |
 |---|---:|---:|
 | Backend unit | 3 | 25 |
-| Backend integration | 3 | 25 |
+| Backend integration | 3 | 32 |
 | Frontend | 9 | 46 |
 | E2E | 8 | 19 |
-| **Total** | **23** | **115** |
+| **Total** | **23** | **122** |
 
 ### 11.6 Requirements with no direct test
 
@@ -522,7 +529,6 @@ For honesty, the following requirements are **not directly covered by an automat
 | **NFR5** Maintainability (TS strict, lint) | `tsc --noEmit` clean in all 3 workspaces; `eslint` config in place | Not a runtime test; enforced at build time. |
 | **NFR6** Coverage thresholds | `backend/vitest.config.ts` thresholds + CI workflow always passes `--coverage` | Enforced on every CI run. |
 | **NFR8** Extensible for `userId` | Repository takes `RepoContext`; documented in `docs/architecture.md` §5.4 | Verified by code shape, not by test. |
-| **NFR10** Structured request logs | Logger implementation + manual `docker compose logs` | No explicit test that logs are well-formed JSON. |
 
 ### 11.7 Tests with no direct PRD requirement
 
