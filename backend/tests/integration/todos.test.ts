@@ -67,6 +67,17 @@ describe("Todos API", () => {
         .send("not json{{");
       expect(res.status).toBe(400);
     });
+
+    it("rejects oversized JSON body with 413 (B5)", async () => {
+      // express.json limit is 16kb; send a body comfortably over.
+      const huge = { title: "x".repeat(20 * 1024) };
+      const res = await request(ctx.app)
+        .post("/api/todos")
+        .set("content-type", "application/json")
+        .send(JSON.stringify(huge));
+      expect(res.status).toBe(413);
+      expect(res.body).toMatchObject({ error: "Request body too large" });
+    });
   });
 
   describe("PATCH /api/todos/:id", () => {

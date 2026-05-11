@@ -21,6 +21,19 @@ describe("loadConfig", () => {
     ).toThrow();
   });
 
+  it("rejects empty CORS_ORIGIN in production (B1)", () => {
+    // Empty string → corsOrigin = [] → cors({ origin: true }) reflects any
+    // origin — same effective behaviour as '*'. Must fail loud.
+    expect(() =>
+      loadConfig({ NODE_ENV: "production", CORS_ORIGIN: "" })
+    ).toThrow(/CORS_ORIGIN is empty/);
+
+    // Whitespace-only is also empty after trim+filter.
+    expect(() =>
+      loadConfig({ NODE_ENV: "production", CORS_ORIGIN: "  ,  ,  " })
+    ).toThrow(/CORS_ORIGIN is empty/);
+  });
+
   it("rejects invalid PORT", () => {
     expect(() => loadConfig({ PORT: "not-a-number" })).toThrow();
   });

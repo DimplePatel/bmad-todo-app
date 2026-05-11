@@ -20,8 +20,13 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
 
   // express.json body-parser errors
   const e = err as { type?: string; status?: number; statusCode?: number; message?: string };
-  if (e?.type === "entity.parse.failed" || e?.type === "entity.too.large") {
+  if (e?.type === "entity.parse.failed") {
     res.status(400).json({ error: "Invalid request body" });
+    return;
+  }
+  if (e?.type === "entity.too.large") {
+    // RFC 9110 §15.5.14: 413 Content Too Large.
+    res.status(413).json({ error: "Request body too large" });
     return;
   }
   if (typeof e?.status === "number" && e.status >= 400 && e.status < 500) {

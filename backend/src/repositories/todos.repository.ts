@@ -105,11 +105,18 @@ export class SqliteTodoRepository implements TodoRepository {
     const nextTitle = patch.title ?? existing.title;
     const nextCompleted =
       patch.completed === undefined ? existing.completed : patch.completed;
-    this.db
+    const info = this.db
       .prepare(
         "UPDATE todos SET title = ?, completed = ?, updated_at = ? WHERE id = ?"
       )
       .run(nextTitle, nextCompleted ? 1 : 0, now, id);
+    // The row could have been deleted by a concurrent writer between
+    // findById and UPDATE. SQLite is single-writer at the connection level
+    // but not at the request level — two concurrent HTTP requests can
+    // interleave a PATCH and a DELETE. If the UPDATE matched nothing, return
+    // null so the controller responds 404 instead of fabricating a phantom
+    // Todo that no longer exists in the DB.
+    if (info.changes === 0) return null;
     return {
       ...existing,
       title: nextTitle,

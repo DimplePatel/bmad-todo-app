@@ -13,11 +13,20 @@ export function TodoItem({ todo }: { todo: Todo }): JSX.Element {
   const { push, dismiss } = useToast();
   const qc = useQueryClient();
 
+  // The row carries a temporary id until create.onSuccess swaps it for the
+  // server-issued UUID. Toggling or deleting against the temp id 404s on
+  // the server, and the resulting onError rollback can clobber the
+  // subsequent reconciliation (B3). Disable interactions until the swap
+  // lands; the window is typically a few hundred milliseconds.
+  const isPending = todo.id.startsWith("temp-");
+
   function onToggle() {
+    if (isPending) return;
     toggle.mutate({ id: todo.id, completed: !todo.completed });
   }
 
   function onDeleteClick() {
+    if (isPending) return;
     // Optimistically hide the row. We use the module-level pendingDeletes
     // registry instead of a component-local timer because the cache filter
     // below unmounts <TodoItem />; a useEffect cleanup would clearTimeout()
@@ -78,6 +87,7 @@ export function TodoItem({ todo }: { todo: Todo }): JSX.Element {
         id={`cb-${todo.id}`}
         type="checkbox"
         checked={todo.completed}
+        disabled={isPending}
         onChange={onToggle}
         aria-label={`Mark "${todo.title}" as ${
           todo.completed ? "active" : "complete"
@@ -90,6 +100,7 @@ export function TodoItem({ todo }: { todo: Todo }): JSX.Element {
         type="button"
         className="todo-delete"
         aria-label={`Delete "${todo.title}"`}
+        disabled={isPending}
         onClick={onDeleteClick}
       >
         ×

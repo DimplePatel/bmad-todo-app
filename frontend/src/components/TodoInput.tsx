@@ -34,7 +34,13 @@ export function TodoInput(): JSX.Element {
         type="text"
         placeholder="What needs to be done?"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          setValue(e.target.value);
+          // Clear stale inline-error alerts as soon as the user resumes
+          // typing (B6). Without this the alert sticks until the next
+          // submit attempt, which screen readers will keep announcing.
+          if (error) setError(null);
+        }}
         maxLength={TODO_TITLE_MAX + 1}
         aria-invalid={error ? "true" : "false"}
         aria-describedby={error ? "new-todo-error" : undefined}

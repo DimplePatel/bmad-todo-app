@@ -36,10 +36,11 @@ export default function App(): JSX.Element {
           <button
             type="button"
             onClick={() => {
-              push({
-                message: "Retrying…",
-                onRetry: () => void refetch(),
-              });
+              // B7: this is a passive status update — no `onRetry`, no
+              // second Retry button on the toast. Clicking the banner's
+              // own Retry already fires the refetch; if it fails again
+              // we re-render this banner and the user can click it again.
+              push({ message: "Retrying…" });
               void refetch();
             }}
           >

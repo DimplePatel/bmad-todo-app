@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Todo } from "@todo/shared";
 import { createTestContext, type TestContext } from "../helpers.js";
 
 describe("SqliteTodoRepository", () => {
@@ -62,6 +63,29 @@ describe("SqliteTodoRepository", () => {
           completed: true,
         })
       ).toBeNull();
+    });
+
+    it("returns null when the row vanishes between findById and UPDATE (B2)", () => {
+      // Simulate a concurrent DELETE that lands between the SELECT and the
+      // UPDATE inside `update()`. We stub findById to claim the row exists
+      // (so the early return is skipped) while the actual DB has no row
+      // with that id — the UPDATE matches 0 changes and we want null,
+      // not a fabricated Todo.
+      const phantom: Todo = {
+        id: "11111111-1111-1111-1111-111111111111",
+        title: "ghost",
+        completed: false,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      };
+      const findSpy = vi
+        .spyOn(ctx.repo, "findById")
+        .mockReturnValue(phantom);
+
+      const result = ctx.repo.update(phantom.id, { completed: true });
+
+      expect(findSpy).toHaveBeenCalled();
+      expect(result).toBeNull();
     });
   });
 

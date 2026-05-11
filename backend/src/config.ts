@@ -20,6 +20,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       "Refusing to start: CORS_ORIGIN='*' is not allowed in production. Set an explicit allowlist."
     );
   }
+  // An empty allowlist falls through to `cors({ origin: true })` in app.ts,
+  // which means "reflect any Origin header" — the same effective behaviour
+  // as '*'. Reject it in production for the same reason.
+  if (nodeEnv === "production" && corsOrigin.length === 0) {
+    throw new Error(
+      "Refusing to start: CORS_ORIGIN is empty in production. Set an explicit allowlist."
+    );
+  }
 
   if (Number.isNaN(port) || port <= 0) {
     throw new Error(`Invalid PORT: ${env.PORT}`);

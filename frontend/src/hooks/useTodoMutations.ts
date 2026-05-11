@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Todo } from "@todo/shared";
 import { api } from "../api/todos";
 import { useToast } from "../components/ToastHost";
+import * as pendingDeletes from "../state/pendingDeletes";
 import { TODOS_KEY } from "./useTodos";
 
 const tempId = () => `temp-${Math.random().toString(36).slice(2)}`;
@@ -45,14 +46,31 @@ export function useTodoMutations() {
       api.update(id, { completed }),
     onMutate: async ({ id, completed }) => {
       await qc.cancelQueries({ queryKey: TODOS_KEY });
-      const previous = qc.getQueryData<Todo[]>(TODOS_KEY) ?? [];
+      // Capture the previous completed value for the specific row so we
+      // can roll back surgically. A whole-array snapshot would let us blow
+      // away unrelated reconciliations (e.g. a concurrent create.onSuccess
+      // that swapped a temp-id row for the server-issued one — B3).
+      const list = qc.getQueryData<Todo[]>(TODOS_KEY) ?? [];
+      const prevRow = list.find((t) => t.id === id);
       qc.setQueryData<Todo[]>(TODOS_KEY, (curr) =>
         (curr ?? []).map((t) => (t.id === id ? { ...t, completed } : t))
       );
-      return { previous };
+      return { id, prevCompleted: prevRow?.completed };
     },
     onError: (err, vars, context) => {
-      qc.setQueryData<Todo[]>(TODOS_KEY, context?.previous ?? []);
+      // Restore only this row's completed state. If the row no longer
+      // exists in the cache (because it was reconciled to a new id, or
+      // deleted via another path) we leave the cache as the source of
+      // truth and just surface the error.
+      if (context?.prevCompleted !== undefined) {
+        qc.setQueryData<Todo[]>(TODOS_KEY, (curr) =>
+          (curr ?? []).map((t) =>
+            t.id === context.id
+              ? { ...t, completed: context.prevCompleted as boolean }
+              : t
+          )
+        );
+      }
       push({
         message: `Couldn't update task. ${(err as Error).message}`,
         onRetry: () => toggle.mutate(vars),
@@ -75,6 +93,14 @@ export function useTodoMutations() {
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: TODOS_KEY });
       const previous = qc.getQueryData<Todo[]>(TODOS_KEY) ?? [];
+      // Cancel any in-flight deferred deletes for completed rows (B4). The
+      // bulk DELETE wipes them server-side; if the per-row deferred DELETE
+      // still fires afterwards it 404s, and the row's catch-block would
+      // restore it to the cache as a ghost. Cancelling here keeps the two
+      // delete paths from racing.
+      for (const t of previous) {
+        if (t.completed) pendingDeletes.cancel(t.id);
+      }
       qc.setQueryData<Todo[]>(TODOS_KEY, (curr) =>
         (curr ?? []).filter((t) => !t.completed)
       );
