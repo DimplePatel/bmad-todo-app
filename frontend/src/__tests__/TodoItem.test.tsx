@@ -143,3 +143,50 @@ describe("<TodoItem /> multiple deletes (Story E3.S4 AC5)", () => {
     expect(deletedIds).toEqual([]);
   });
 });
+
+// Closes the unit-level gap for FR5 ("completed todos are visually
+// differentiated"). The CSS in `frontend/src/styles/index.css` applies
+// `text-decoration: line-through` + a dimmed colour via the
+// `.todo-item.is-completed` selector — but the visual flip is only
+// observable through that class being present in the DOM. A regression
+// that dropped the className (or renamed it) would still pass every
+// existing unit test; only the e2e a11y populated-list axe scan would
+// catch the resulting contrast/legibility issue. This test pins the
+// class-presence contract directly.
+describe("<TodoItem /> visual differentiation (FR5)", () => {
+  beforeEach(() => {
+    resetStore([
+      {
+        id: "id-vd",
+        title: "visual",
+        completed: false,
+        createdAt: new Date(2026, 0, 1).toISOString(),
+        updatedAt: new Date(2026, 0, 1).toISOString(),
+      },
+    ]);
+  });
+
+  it("toggling a row adds the is-completed class to its <li>", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    const checkbox = await screen.findByRole("checkbox", {
+      name: /mark "visual" as complete/i,
+    });
+    const row = checkbox.closest("li.todo-item");
+    expect(row).not.toBeNull();
+    // Pre-toggle: the row exists but is not marked completed.
+    expect(row).not.toHaveClass("is-completed");
+
+    await user.click(checkbox);
+
+    // Post-toggle (optimistic): the class flips immediately and the
+    // checkbox is in its checked state. A regression that removed the
+    // `${todo.completed ? " is-completed" : ""}` template in TodoItem.tsx
+    // would fail here.
+    await screen.findByRole("checkbox", {
+      name: /mark "visual" as active/i,
+    });
+    expect(row).toHaveClass("is-completed");
+  });
+});

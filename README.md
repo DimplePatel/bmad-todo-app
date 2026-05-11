@@ -2,6 +2,33 @@
 
 A single-user Todo app built spec-first via the **BMAD-METHOD** (Breakthrough Method for Agile AI-Driven Development). The codebase is a working reference for what spec-driven delivery looks like end-to-end: PRD → architecture → sharded stories → implementation → QA — with every claim traceable to a test.
 
+## Architecture at a glance
+
+Three Docker services, one named volume, one nginx-fronted API surface. The browser only ever talks to the frontend container; `/api/*` is proxied to the backend on a private compose network. SQLite lives on a named volume (`todo-db`) so data survives `docker compose down`. The frontend is built with Vite and served by nginx-unprivileged on port 8080 in production; in development Vite serves on 5173 and proxies `/api/*` to the local backend on 3001. The backend is `expose:`-only in prod — never published to the host — so nginx is the single ingress.
+
+```
+    Browser
+      │
+      │ HTTP / HTTPS
+      ▼
+┌─────────────────────────┐                 ┌──────────────────────────┐
+│ frontend                │   /api/* proxy  │ backend                  │
+│ nginx-unprivileged      │ ──────────────► │ Node 20 + Express 4      │
+│ :8080 (prod)            │   private net   │ :3001 (expose only)      │
+│ Vite :5173 (dev only)   │     todo-net    │ helmet · cors · zod      │
+└─────────────────────────┘                 └────────────┬─────────────┘
+                                                         │ better-sqlite3
+                                                         ▼
+                                            ┌──────────────────────────┐
+                                            │ SQLite (WAL mode)        │
+                                            │ named volume: todo-db    │
+                                            │ /data/todos.db           │
+                                            └──────────────────────────┘
+    all three orchestrated by docker-compose.yml; tini=PID 1 in backend
+```
+
+For the full architectural rationale — layered backend (`controller → service → repository`), `RepoContext` plumbing for v2 auth, deployment topology, and the migration path to Postgres — see [`docs/architecture.md`](docs/architecture.md).
+
 ## Tech stack
 
 - **Frontend:** React 18 + Vite + TypeScript, React Query for server state, MSW for tests
@@ -42,6 +69,7 @@ BMAD/
 │   └── Dockerfile
 │
 ├── frontend/                        # React SPA
+│   ├── .env.example                 # template for VITE_* vars (none required in v1)
 │   ├── index.html                   # incl. favicon + meta description
 │   ├── public/
 │   │   ├── favicon.svg
@@ -55,7 +83,7 @@ BMAD/
 │   │   ├── state/                   # filterStore (localStorage) + pendingDeletes
 │   │   │                            #   (module-level registry for deferred deletes)
 │   │   ├── test/                    # MSW handlers + render helpers
-│   │   ├── __tests__/               # 11 Vitest + RTL spec files (52 cases)
+│   │   ├── __tests__/               # 11 Vitest + RTL spec files (53 cases)
 │   │   ├── App.tsx
 │   │   ├── main.tsx
 │   │   └── styles/
@@ -122,7 +150,7 @@ npm install
 
 # Run unit + integration tests
 npm run test:backend         # Vitest + Supertest — 57 cases
-npm run test:frontend        # Vitest + RTL + MSW — 52 cases
+npm run test:frontend        # Vitest + RTL + MSW — 53 cases
 
 # Coverage (frontend uses @vitest/coverage-v8)
 npm test --workspace=frontend -- --coverage
@@ -193,7 +221,7 @@ Environment variables (see `.env.example`):
 | [`docs/project-brief.md`](docs/project-brief.md) | Analyst output — problem, scope, risks, open questions |
 | [`docs/prd.md`](docs/prd.md) | PM output — 15 FRs + 10 NFRs, API contract, 23 stories |
 | [`docs/architecture.md`](docs/architecture.md) | Architect output — system diagram, layered backend, RepoContext, deployment topology |
-| [`docs/test-strategy.md`](docs/test-strategy.md) | QA output — pyramid, tooling, **§11 per-test → PRD requirement traceability (128 mappings)** |
+| [`docs/test-strategy.md`](docs/test-strategy.md) | QA output — pyramid, tooling, **§11 per-test → PRD requirement traceability (129 mappings)** |
 | [`docs/epics/`](docs/epics/) + [`docs/stories/`](docs/stories/) | E1–E4 sharded; 23 Dev-ready stories |
 | [`docs/qa/README.md`](docs/qa/README.md) | QA report index with quick re-verification commands |
 | [`docs/qa/coverage.md`](docs/qa/coverage.md) | Source-file % + remaining gaps (gate enforced in CI) |
@@ -212,16 +240,17 @@ Backend integration           3      32     health (+ notFoundHandler + NFR10 lo
                                             todos (+ B2 race, no-op timestamp,
                                             combined PATCH, CORS allowlist,
                                             helmet on /api/todos), persistence
-Frontend (Vitest + RTL)      11      52     incl. ToastHost, pendingDeletes, api client,
+Frontend (Vitest + RTL)      11      53     incl. ToastHost, pendingDeletes, api client,
                                             tab-order (NFR4), 3 state-coverage a11y tests,
                                             EmptyState + Skeleton unit, loading transition,
                                             3-todos render, Active-filter integration,
-                                            Retry click re-fetches (E3.S1 + E3.S5)
+                                            Retry click re-fetches (E3.S1 + E3.S5),
+                                            FR5 is-completed class flip
 E2E (Playwright)              8      19     smoke, happy-path, filter-persistence,
                                             undo-delete, delete-to-empty, error-rollback,
                                             responsive (NFR3), a11y (11 axe scans)
                               ---    ---
-Total                         25     128
+Total                         25     129
 ```
 
 Every test case is mapped to its PRD FR/NFR ID in [`docs/test-strategy.md`](docs/test-strategy.md) **§11**. The forward map (requirement → tests) is in §5 of the same doc.

@@ -29,9 +29,9 @@ Headline counts:
 |---|---|---:|---:|
 | Backend unit | Vitest | 3 | 25 |
 | Backend integration | Vitest + Supertest | 3 | 32 |
-| Frontend (unit + integration) | Vitest + RTL + MSW | 11 | 52 |
+| Frontend (unit + integration) | Vitest + RTL + MSW | 11 | 53 |
 | E2E (real browser) | Playwright + axe-playwright | 8 | 19 |
-| **Total** | — | **25** | **128** |
+| **Total** | — | **25** | **129** |
 
 Per-test → PRD requirement mapping lives in §11 of this document.
 
@@ -114,7 +114,7 @@ Every PRD requirement traces to at least one test scenario. Reading: **U** = uni
 | FR2 | Reject empty title | Backend `schema.test.ts` (U), `todos.test.ts` (I), frontend `App.test.tsx` |
 | FR3 | List todos newest-first | Backend `repository.test.ts` (U), `todos.test.ts` (I); implicitly E2E |
 | FR4 | Toggle completion | Backend `todos.test.ts` (I), frontend `App.test.tsx` (U/I), E2E `happy-path` |
-| FR5 | Visual differentiation of completed | E2E `a11y.spec.ts` populated-list axe scan caught the original color-contrast bug |
+| FR5 | Visual differentiation of completed | Frontend `TodoItem.test.tsx` "visual differentiation (FR5)" pins the `is-completed` class flip at unit level; E2E `a11y.spec.ts` populated-list axe scan caught the original color-contrast bug |
 | FR6 | Delete with undo | Frontend `TodoItem.test.tsx` (U, undo-within-window), E2E `undo-delete` (both branches incl. 5 s elapsed) |
 | FR7 | Filter with localStorage persistence | Frontend `filterStore.test.ts` + `Filters.test.tsx` (U), E2E `filter-persistence` |
 | FR8 | Clear completed | Backend `todos.test.ts` (I), frontend `mutations.test.tsx` (U/I 500-rollback), E2E `happy-path` |
@@ -389,12 +389,13 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `<Footer /> > shows '1 item left' for a single active item` | FR15 |
 | `<Footer /> > shows Clear completed when at least one completed` | FR8 |
 
-#### `frontend/src/__tests__/TodoItem.test.tsx` — 2 cases
+#### `frontend/src/__tests__/TodoItem.test.tsx` — 3 cases
 
 | Test | Requirements |
 |---|---|
 | `<TodoItem /> delete-with-undo > undo within the window restores the row and never sends DELETE` | FR6 |
 | `<TodoItem /> multiple deletes (Story E3.S4 AC5) > queues independent toasts; undoing one restores only that row` | FR6 |
+| `<TodoItem /> visual differentiation (FR5) > toggling a row adds the is-completed class to its <li>` | FR5 |
 
 #### `frontend/src/__tests__/filterStore.test.ts` — 5 cases
 
@@ -532,9 +533,9 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 |---|---:|---:|
 | Backend unit | 3 | 25 |
 | Backend integration | 3 | 32 |
-| Frontend | 11 | 52 |
+| Frontend | 11 | 53 |
 | E2E | 8 | 19 |
-| **Total** | **25** | **128** |
+| **Total** | **25** | **129** |
 
 ### 11.6 Requirements with no direct test
 
