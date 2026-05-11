@@ -28,13 +28,32 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
 BUDGET_SECONDS=60
+CREATED_ENV=0
 
 cleanup() {
   echo
   echo "--- tearing down ---"
   docker compose down -v --remove-orphans 2>&1 | sed 's/^/  /' || true
+  if [ "${CREATED_ENV}" = "1" ] && [ -f .env ]; then
+    rm -f .env
+  fi
 }
 trap cleanup EXIT
+
+# docker-compose.yml has `env_file: .env` on the shared service block, which
+# Compose treats as required. On a fresh checkout (CI in particular) the file
+# doesn't exist yet — copy from the committed template so the script is
+# self-sufficient. We remember we created it so cleanup() removes it again,
+# leaving the developer's local config untouched if they ever had one.
+if [ ! -f .env ]; then
+  if [ ! -f .env.example ]; then
+    echo "FAIL: neither .env nor .env.example exists at the repo root"
+    exit 1
+  fi
+  echo "--- no .env found; copying .env.example -> .env for this run ---"
+  cp .env.example .env
+  CREATED_ENV=1
+fi
 
 echo "--- pre-check: Docker daemon reachable? ---"
 if ! docker version --format '{{.Server.Version}}' >/dev/null 2>&1; then

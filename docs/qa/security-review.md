@@ -257,7 +257,7 @@ Changes evaluated for security impact:
 | New `e2e/tests/responsive.spec.ts` | Test-only; iterates viewport sizes. No production code change. | No security impact. |
 | New tab-order test in `App.test.tsx` | Test-only. | No security impact. |
 | New `.github/workflows/test.yml` (CI) | Adds a CI runner. The workflow has no secrets, no `pull_request_target` (avoids the most common GHA secrets-leak vector), and no third-party actions beyond official `actions/*` and `actions/setup-node@v4`. | No security finding. The CI itself is a security **gain** — coverage gate now trips on every push. |
-| New `scripts/test-compose-up-time.sh` | Bash script with `set -euo pipefail`, no user input. Wipes the named volume in cleanup. | No security finding. |
+| New `scripts/test-compose-up-time.sh` | Bash script with `set -euo pipefail`, no user input. Wipes the named volume in cleanup. If `.env` is missing it copies the committed `.env.example` template into place and removes the copy on cleanup (tracked via `CREATED_ENV` flag, so a developer's existing `.env` is never overwritten). `.env.example` contains no secrets — only non-sensitive defaults (`NODE_ENV`, `PORT`, `DATABASE_PATH`, `CORS_ORIGIN`, host port numbers). | No security finding. The auto-`.env` behaviour does not introduce a secret-exposure path because `.env.example` is committed and reviewed; the file is removed before the script exits. |
 
 ### Re-run of the §14 greps (2026-05-12)
 
