@@ -11,7 +11,13 @@ import {
 export type Toast = {
   id: string;
   message: string;
+  // Action callback for the toast's primary affordance. Most toasts use this
+  // as a "Retry" — re-issue the failed mutation. The delete flow re-uses it
+  // for "Undo" (cancel the pending DELETE). The visible button label comes
+  // from `actionLabel`; falls back to "Retry" so existing call sites keep
+  // working without change.
   onRetry?: () => void;
+  actionLabel?: string;
 };
 
 type ToastContextValue = {
@@ -107,7 +113,7 @@ function ToastView({
             onDismiss();
           }}
         >
-          Retry
+          {toast.actionLabel ?? "Retry"}
         </button>
       )}
       <button

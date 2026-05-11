@@ -15,7 +15,7 @@
 3. **Layered backend.** `controller → service → repository`. Each layer has one responsibility and is independently testable.
 4. **Optimistic, reconciled frontend.** UI mutates immediately and reconciles against server responses; failures roll back without surprise.
 5. **Durable persistence by default.** SQLite file lives on a named Docker volume; no ephemeral storage in the hot path.
-6. **Future-proof for auth.** Data model, repository signatures, and API shape are designed so a `userId` scope can be added without a breaking change (NFR8).
+6. **Future-proof for auth.** Data model, repository signatures, and API shape are designed so a `userId` scope can be added without a breaking change (NFR8). Repository methods already take an opaque `RepoContext` options object that's empty in v1; auth lands by adding `userId` to that type, not by changing method arity.
 7. **Observable in containers.** Structured logs to stdout; health endpoint exposed; no surprise dependencies.
 
 ---
@@ -194,12 +194,23 @@ A single `errorHandler` middleware is the only path that emits errors. Controlle
 ### 4.5 Repository contract
 
 ```ts
+// Opaque options object threaded through every call. Empty in v1 — fields
+// (userId, request id, etc.) get added here without changing method arity.
+export type RepoContext = {
+  /* no fields in v1 */
+};
+
 export interface TodoRepository {
-  list(): Todo[];                          // ordered by createdAt DESC
-  create(input: { title: string }): Todo;
-  update(id: string, patch: { title?: string; completed?: boolean }): Todo | null;
-  delete(id: string): boolean;             // true if a row was deleted
-  deleteCompleted(): number;               // count deleted
+  list(ctx?: RepoContext): Todo[];                          // ordered by createdAt DESC
+  findById(id: string, ctx?: RepoContext): Todo | null;
+  create(input: { title: string }, ctx?: RepoContext): Todo;
+  update(
+    id: string,
+    patch: { title?: string; completed?: boolean },
+    ctx?: RepoContext,
+  ): Todo | null;
+  delete(id: string, ctx?: RepoContext): boolean;           // true if a row was deleted
+  deleteCompleted(ctx?: RepoContext): number;               // count deleted
 }
 ```
 
@@ -260,8 +271,11 @@ A tiny synchronous runner reads `migrations/*.sql` in lexicographic order and ap
 
 Adding a `userId` later is non-breaking because:
 - `Todo` is a closed shape today; adding a field is additive.
-- The repository methods take an opaque options object that can later require `{ userId }` without changing the route handler signatures (controller reads `req.user.id` from auth middleware and passes it through).
+- The repository methods take an opaque `RepoContext` options object (defined in `backend/src/repositories/todos.repository.ts`) that's threaded through every call. The type is empty in v1 — adding `userId` to it then propagates through the entire stack via TypeScript without any method arity change. Controllers build the context via a `ctx(req)` helper that today returns `{}` and will return `{ userId: req.user.id }` once an auth middleware populates `req.user`.
+- The matching service-layer signatures also accept `RepoContext` and pass it through unchanged.
 - A migration `002_add_user_id.sql` would add a nullable `user_id` column and an index `(user_id, created_at DESC)`. A backfill is unnecessary in v1 because there are no users yet.
+
+In other words: the v1 plumbing for per-user scoping is in place. The v2 work is (a) populate the context from auth, (b) add `WHERE user_id = ?` predicates inside the repository's SQL — both purely additive.
 
 ---
 

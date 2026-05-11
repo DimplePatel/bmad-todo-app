@@ -1,13 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./_fixtures";
 
 test("smoke: app loads and health endpoint responds", async ({
-  page,
+  todoPage,
   request,
 }) => {
-  await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: /todo app/i })
-  ).toBeVisible();
+  await expect(todoPage.heading).toBeVisible();
 
   const health = await request.get(
     `${process.env.BACKEND_URL ?? "http://localhost:3001"}/api/health`

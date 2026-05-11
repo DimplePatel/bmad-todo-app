@@ -1,29 +1,33 @@
 import type { Todo } from "@todo/shared";
-import type { TodoRepository } from "../repositories/todos.repository.js";
+import type {
+  RepoContext,
+  TodoRepository,
+} from "../repositories/todos.repository.js";
 
 export class TodosService {
   constructor(private readonly repo: TodoRepository) {}
 
-  list(): Todo[] {
-    return this.repo.list();
+  list(ctx?: RepoContext): Todo[] {
+    return this.repo.list(ctx);
   }
 
-  create(input: { title: string }): Todo {
-    return this.repo.create({ title: input.title });
+  create(input: { title: string }, ctx?: RepoContext): Todo {
+    return this.repo.create({ title: input.title }, ctx);
   }
 
   update(
     id: string,
-    patch: { title?: string; completed?: boolean }
+    patch: { title?: string; completed?: boolean },
+    ctx?: RepoContext
   ): Todo | null {
-    return this.repo.update(id, patch);
+    return this.repo.update(id, patch, ctx);
   }
 
-  delete(id: string): boolean {
-    return this.repo.delete(id);
+  delete(id: string, ctx?: RepoContext): boolean {
+    return this.repo.delete(id, ctx);
   }
 
-  deleteCompleted(): number {
-    return this.repo.deleteCompleted();
+  deleteCompleted(ctx?: RepoContext): number {
+    return this.repo.deleteCompleted(ctx);
   }
 }

@@ -21,7 +21,8 @@
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",
     "e2e": "npm run test --workspace=e2e",
-    "e2e:install": "npx playwright install --with-deps chromium"
+    "e2e:install": "npx playwright install --with-deps chromium",
+    "test:nfr7": "bash scripts/test-compose-up-time.sh"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",

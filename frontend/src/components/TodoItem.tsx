@@ -43,6 +43,7 @@ export function TodoItem({ todo }: { todo: Todo }): JSX.Element {
     toastId = push({
       message: `Deleted "${todo.title}".`,
       onRetry: undoHandler,
+      actionLabel: "Undo",
     });
 
     pendingDeletes.schedule(

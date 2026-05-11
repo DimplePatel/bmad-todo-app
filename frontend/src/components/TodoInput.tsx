@@ -43,7 +43,12 @@ export function TodoInput(): JSX.Element {
         Add
       </button>
       {error && (
-        <p id="new-todo-error" className="input-error" role="alert">
+        <p
+          id="new-todo-error"
+          className="input-error"
+          role="alert"
+          data-testid="input-error"
+        >
           {error}
         </p>
       )}

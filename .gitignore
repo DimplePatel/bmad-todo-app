@@ -1,14 +1,42 @@
+# Dependencies & build outputs
 node_modules/
 dist/
 build/
+*.tsbuildinfo
+
+# Coverage outputs (per-tool variants)
 coverage/
+coverage-final.json
+*.lcov
+lcov-report/
+.nyc_output/
+.vitest/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Performance audit outputs
+lighthouse*.html
+lighthouse*.json
+lighthouse-prod.html
+
+# Tool caches
+.cache/
+.turbo/
+
+# Secrets / local config
 .env
 .env.local
-*.log
+
+# Editor / OS
 .DS_Store
 .vscode/
 .idea/
+
+# Runtime data (local SQLite file, scratch space)
 tmp/
 data/
-playwright-report/
-test-results/
+
+# Logs
+*.log

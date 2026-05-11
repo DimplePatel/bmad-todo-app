@@ -65,24 +65,10 @@ export function useTodoMutations() {
     },
   });
 
-  const remove = useMutation({
-    mutationFn: (id: string) => api.remove(id),
-    onMutate: async (id) => {
-      await qc.cancelQueries({ queryKey: TODOS_KEY });
-      const previous = qc.getQueryData<Todo[]>(TODOS_KEY) ?? [];
-      qc.setQueryData<Todo[]>(TODOS_KEY, (curr) =>
-        (curr ?? []).filter((t) => t.id !== id)
-      );
-      return { previous };
-    },
-    onError: (err, id, context) => {
-      qc.setQueryData<Todo[]>(TODOS_KEY, context?.previous ?? []);
-      push({
-        message: `Couldn't delete task. ${(err as Error).message}`,
-        onRetry: () => remove.mutate(id),
-      });
-    },
-  });
+  // Note: there is no `remove` mutation here. TodoItem schedules deferred
+  // deletes via `state/pendingDeletes` and calls `api.remove` directly so the
+  // timer survives the row's optimistic unmount. Reintroduce a useMutation
+  // wrapper only if a non-deferred delete flow is needed elsewhere.
 
   const clearCompleted = useMutation({
     mutationFn: () => api.clearCompleted(),
@@ -103,5 +89,5 @@ export function useTodoMutations() {
     },
   });
 
-  return { create, toggle, remove, clearCompleted };
+  return { create, toggle, clearCompleted };
 }

@@ -1,3 +1,5 @@
+// Type declarations for @todo/shared. The runtime values live in index.js.
+
 export type Todo = {
   id: string;
   title: string;
@@ -15,4 +17,4 @@ export type UpdateTodoInput = {
   completed?: boolean;
 };
 
-export const TODO_TITLE_MAX = 200;
+export declare const TODO_TITLE_MAX = 200;

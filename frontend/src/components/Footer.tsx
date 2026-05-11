@@ -7,7 +7,11 @@ export function Footer({ todos }: { todos: Todo[] }): JSX.Element {
   const { clearCompleted } = useTodoMutations();
   return (
     <footer className="footer">
-      <span className="items-left" aria-live="polite">
+      <span
+        className="items-left"
+        aria-live="polite"
+        data-testid="items-left"
+      >
         {active} {active === 1 ? "item" : "items"} left
       </span>
       {completed > 0 && (

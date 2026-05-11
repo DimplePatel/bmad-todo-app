@@ -1,52 +1,53 @@
-# QA Activities — Step 4 Summary
+# QA Reports
 
-**Date:** 2026-05-01
-**Owner:** BMAD QA persona
+**Last updated:** 2026-05-12
 
-This folder is the QA outcome of BMAD Step 4. Each file maps to one of the four QA tasks.
+This folder contains the four standing QA test reports for the Todo App. Each is **regenerable from automated tests** — every claim traces back to a script that can be re-run.
 
-| Task | Outcome | Doc |
+| Report | What it covers | Headline |
 |---|---|---|
-| Test coverage analysis | Frontend 87.08% lines (target ≥ 70%); backend ≥ 80% lines via wired integration suite + CI threshold gate. New tests added for `TodoItem` undo and mutation rollback paths. | [coverage.md](./coverage.md) |
-| Accessibility testing | New Playwright spec `e2e/tests/a11y.spec.ts` runs `axe-core` over empty / populated / filtered states + a keyboard-only flow, failing only on serious / critical impacts. | [accessibility (in coverage.md §E2E)](./coverage.md) + the spec itself |
-| Performance review | Static review against NFR1/NFR3/NFR7 (no critical findings); procedure for live Lighthouse + autocannon runs documented; results table to fill in after a local run. | [performance.md](./performance.md) |
-| Security review | Full static review across XSS / SQL injection / CSRF / CORS / secrets / containers / dependencies. No high or critical findings; two informational items. | [security-review.md](./security-review.md) |
-| AI integration log | How AI was used across Steps 1–4: agent usage, MCPs available vs. used, test generation strengths and gaps, debugging cases, and explicit sandbox limitations. | [../ai-integration-log.md](../ai-integration-log.md) |
+| [coverage.md](./coverage.md) | What % of source code is exercised by tests | **Frontend 89.03% lines / 95.23% functions**; backend gated at ≥ 80% lines (CI-enforced) |
+| [performance.md](./performance.md) | NFR1, NFR3, NFR7 — UI/API latency, responsive layout, container startup | Backend p99 = **11 ms** (autocannon 50c/30s); Lighthouse Performance 85 (dev), 95+ expected on prod build; NFR7 now CI-gated |
+| [accessibility.md](./accessibility.md) | WCAG 2.1 AA conformance via axe + Lighthouse + RTL keyboard tests | **Lighthouse Accessibility = 100**; **0 serious/critical axe violations** across **12 distinct UI states** |
+| [security-review.md](./security-review.md) | XSS, SQL injection, CSRF, CORS, secrets, container hardening, dependencies | **0 high / 0 critical**; 7 informational items (F1–F7) all in the "v2 polish" bucket |
 
-## At a glance
+For test design and strategy (pyramid, tooling, isolation rules, traceability), see [`docs/test-strategy.md`](../test-strategy.md). For the AI-collaboration retrospective behind these tests, see [`docs/ai-integration-log.md`](../ai-integration-log.md).
 
-- **Frontend coverage:** 87.08% lines, 84.12% functions across 6 test files / 17 specs.
-- **Backend tests:** 24 integration + 23 unit cases wired (`tests/integration` + `tests/unit`); CI gate is 80% lines.
-- **E2E tests:** `smoke`, `happy-path`, `filter-persistence`, `undo-delete`, `error-rollback`, `a11y` — all under `e2e/tests/`.
-- **Security:** 0 high / 0 critical. 2 informational items (logger trace IDs; transitive `glob`).
-- **Performance:** 0 critical. 5 informational items (all v2 candidates).
-
-## How to run the full QA pass locally
+## Quick re-verification
 
 ```bash
-# 1. Install everything
-npm install
+cd /Users/dimple/Documents/Claude/Projects/BMAD
 
-# 2. Coverage
-npm test --workspace=backend -- --coverage
+# 1. Unit + integration with coverage (regenerates docs/qa/coverage.md numbers)
+npm test --workspace=backend  -- --coverage
 npm test --workspace=frontend -- --coverage
 
-# 3. E2E (Chromium only by default)
-npx playwright install chromium
-docker compose up --wait
+# 2. E2E (Playwright Chromium — 19 cases including 12 axe scans)
+npx playwright install --with-deps chromium      # one-time
 npm run e2e
-npx --workspace=e2e playwright show-report
 
-# 4. Lighthouse (on the running stack)
-npx lighthouse http://localhost:5173 --preset=desktop --output=html
+# 3. NFR7 budget check (regenerates docs/qa/performance.md Compose-startup row)
+npm run test:nfr7
 
-# 5. (Optional) API micro-bench
+# 4. Lighthouse (regenerates docs/qa/performance.md + docs/qa/accessibility.md scores)
+docker compose up --build -d
+until curl -fsS http://localhost:5173 >/dev/null 2>&1; do sleep 1; done
+npx lighthouse http://localhost:5173 --preset=desktop --output=html --output-path=./lighthouse.html
+
+# 5. API micro-bench (regenerates docs/qa/performance.md backend row)
 npx autocannon -c 50 -d 30 http://localhost:3001/api/todos
+
+# 6. Security greps (regenerates docs/qa/security-review.md §14 baseline)
+# Commands are listed inline at the bottom of security-review.md.
 ```
 
-## What's next (post-Step 4)
+Steps 1–3 also run automatically in CI on every push (`.github/workflows/test.yml`). Steps 4–5 are manual because they need the running stack and Chrome.
 
-1. Fold the `npm test` + `npm run e2e` invocations into a CI workflow (GitHub Actions / GitLab CI).
-2. Wire the Playwright HTML report and Lighthouse HTML report as CI artifacts.
-3. Schedule a weekly `npm audit --omit=dev` job to catch newly disclosed CVEs.
-4. Add the trace-id middleware (Security F2) before introducing observability tooling.
+## Maintenance contract
+
+When a test or source file changes that would shift one of the headline numbers above, the relevant report should be refreshed. The two reports most sensitive to drift:
+
+- **coverage.md** drifts whenever new code or tests land. Re-measure after any PR touching `frontend/src/` or `backend/src/`.
+- **accessibility.md** drifts whenever UI components or styling change. Re-measure after CSS or component edits.
+
+`performance.md` and `security-review.md` are more stable — they need a refresh only when there's a known architectural change (e.g., adding rate-limiting would update performance + security; adding auth would update security).

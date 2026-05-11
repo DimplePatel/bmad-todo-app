@@ -1,0 +1,101 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Every push / PR runs the full gate:
+#   1. Lint + TypeScript type-check across all 3 workspaces.
+#   2. Backend tests with `--coverage` — fails the build if coverage drops
+#      below the thresholds in backend/vitest.config.ts (≥ 80% lines,
+#      ≥ 80% functions, ≥ 75% branches, ≥ 80% statements). Closes NFR6.
+#   3. Frontend tests with `--coverage` — measured, not yet gated.
+#   4. Playwright E2E (Chromium only) — auto-starts dev servers via the
+#      webServer config in playwright.config.ts.
+#   5. Upload HTML/text coverage reports + Playwright report as artifacts.
+#
+# The NFR7 budget check (`docker compose up --wait` < 60 s) runs in a
+# separate job because it needs the Docker daemon (which conflicts with
+# the dev servers Playwright starts in the main job).
+
+jobs:
+  test:
+    name: Lint · type-check · unit+integration · E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install workspaces
+        run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Type-check backend
+        run: npm run lint --workspace=backend
+
+      - name: Type-check frontend
+        run: npm run lint --workspace=frontend
+
+      - name: Type-check e2e
+        run: npm run lint --workspace=e2e
+
+      - name: Backend tests with coverage gate (NFR6)
+        run: npm test --workspace=backend -- --coverage
+
+      - name: Frontend tests with coverage
+        run: npm test --workspace=frontend -- --coverage
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install Playwright (Chromium only)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E
+        run: npm run e2e
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            backend/coverage/
+            frontend/coverage/
+          retention-days: 7
+
+  nfr7:
+    name: NFR7 — docker compose up < 60 s
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # Runs in parallel with the `test` job — neither depends on the other,
+    # which keeps total wall-clock time short.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run NFR7 budget check
+        run: bash scripts/test-compose-up-time.sh
