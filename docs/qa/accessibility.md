@@ -1,6 +1,7 @@
 # Accessibility Test Report
 
 **First written:** 2026-05-12
+**Last updated:** 2026-05-12 — added `EmptyState.test.tsx` + `Skeleton.test.tsx` unit-level a11y assertions; closed the B6 stale-alert finding
 **Scope:** entire `frontend/` UI as rendered in production-build mode
 **Target:** WCAG 2.1 AA (PRD NFR4)
 **Method:** axe-core via `axe-playwright` + Lighthouse + RTL + manual code review. Every assertion is automated; nothing in this report relies on "trust me."
@@ -58,10 +59,12 @@ Component unit tests reach for ARIA roles and accessible names. **16+ such queri
 |---|---|
 | `Filters.test.tsx` | `aria-pressed` toggles correctly between filter chips |
 | `Footer.test.tsx` | Counter is text-discoverable |
-| `App.test.tsx` | Heading is reachable by role; input by label; checkbox by `aria-label` |
+| `App.test.tsx` | Heading is reachable by role; input by label; checkbox by `aria-label`; tab-order verified explicitly; populated list rendered by accessible name (E3.S1 I3); filter chip clicks change the rendered list (E3.S5 I1) |
 | `TodoItem.test.tsx` | Delete button is reachable by its `aria-label` |
-| `mutations.test.tsx` | Retry toast is role-reachable |
+| `mutations.test.tsx` | Retry toast is role-reachable; error-banner Retry re-runs the query (E3.S1 I4) |
 | `ToastHost.test.tsx` | Action toasts use `role="alert"`; informational toasts use `role="status"` |
+| `EmptyState.test.tsx` | EmptyState has `role="status"` so SRs announce it when the list transitions to empty (E3.S1 U1) |
+| `Skeleton.test.tsx` | Loading skeleton has `aria-busy="true"` + accessible name; placeholder rows are `aria-hidden="true"` so SRs don't read them (E3.S1 U2) |
 
 A regression that removed a label, changed a role, or broke an ARIA attribute would fail multiple unit tests before the e2e suite even runs.
 
@@ -104,7 +107,7 @@ For a single-page form-driven app, the AA criteria split into automated (verifie
 | **2.4.7** Focus Visible | code | `:focus-visible` outline rule in `frontend/src/styles/index.css` |
 | **3.1.1** Language of Page | code | `<html lang="en">` in `frontend/index.html` |
 | **3.2.1 / 3.2.2** On Focus / On Input | code | no unexpected context changes; form requires explicit submit |
-| **3.3.1** Error Identification | axe + code + a11y inline-error scan | `<p role="alert" data-testid="input-error">`; input has `aria-invalid="true"` |
+| **3.3.1** Error Identification | axe + code + a11y inline-error scan | `<p role="alert" data-testid="input-error">`; input has `aria-invalid="true"`; alert is cleared on the next keystroke so SRs don't keep announcing a stale error (B6 fix) |
 | **3.3.2** Labels or Instructions | axe | placeholder + accessible name on input |
 | **3.3.3** Error Suggestion | code | "Please enter a task description" / "Maximum 200 characters." |
 | **4.1.1** Parsing | axe | no duplicate IDs |
@@ -124,6 +127,8 @@ For a single-page form-driven app, the AA criteria split into automated (verifie
 | Initial Lighthouse run | `--completed` color on `--surface` = 2.5:1, **below WCAG AA's 4.5:1** | Darkened to `#52525b` = **7.21:1** (AA + AAA); the original axe scan that caught this is in `a11y.spec.ts` "populated list" |
 | Initial Lighthouse run | Missing favicon → 404 in console → Best Practices docked | Added `frontend/public/favicon.svg` |
 | Initial Lighthouse run | Missing `<meta name="description">` → SEO docked | Added to `frontend/index.html` |
+| Post-implementation code review (B6) | `TodoInput`'s inline `role="alert"` persisted until the next submit attempt; a screen reader would keep announcing a validation error even after the user resumed typing | `onChange` now calls `setError(null)` as soon as the user types — see `frontend/src/components/TodoInput.tsx`. Affects WCAG 3.3.1 / 4.1.3. |
+| Post-implementation code review (B3) | Temp-id rows (during the optimistic-create → server-id reconcile window) accepted toggle/delete events but the server 404'd on the temp id, producing a confusing announce-then-rollback sequence for SR users | `<TodoItem>` now sets `disabled={isPending}` on both the checkbox and delete button while `todo.id.startsWith("temp-")`; SRs announce the disabled state correctly. |
 
 ### Open
 

@@ -23,8 +23,8 @@
 | Secrets in source | **OK** | `grep -i "password\|secret\|api[_-]?key\|token"` over `**/*.{ts,tsx,js,json}` returns only CSS-tokenizer false positives from `package-lock.json`. |
 | Error info leakage | **OK** | `errorHandler` returns `{error: "Internal server error"}` to clients; stack is logged to `stderr` only. |
 | Headers | **OK** | `helmet()` defaults enabled; `x-powered-by` disabled (`app.disable("x-powered-by")`). |
-| CORS | **OK in production, soft fallback in tests** | Env-driven allowlist; `*` rejected when `NODE_ENV=production`. See **F3** below. |
-| Body-size DoS | **OK** | `express.json({ limit: "16kb" })`; oversized body → `400`. |
+| CORS | **OK in production, soft fallback in tests** | Env-driven allowlist; `*` rejected when `NODE_ENV=production`; **empty allowlist also rejected in production** (B1 fix). Test build still falls back to `origin: true` (reflect any). See **F3** below for the partial-mitigation status. Integration-tested via `tests/integration/todos.test.ts` "CORS allowlist (NFR9, B1) > reflects an allowed origin on a preflight request" and "does NOT echo an Allow-Origin header for a disallowed origin". |
+| Body-size DoS | **OK** | `express.json({ limit: "16kb" })`; oversized body → `413 Request body too large` (B5 fix; previously coalesced to 400). Tested in `tests/integration/todos.test.ts` "rejects oversized JSON body with 413". |
 | Path traversal | **OK** | Only filesystem reads are migration files bundled at build time + `DATABASE_PATH` env var (operator-controlled). |
 | SSRF | **N/A** | `grep` for outbound HTTP libraries/calls in `backend/src` returns zero matches. The server makes no outbound requests. |
 | Prototype pollution | **OK** | No `Object.assign(...req.body)`, no `lodash.merge`, no spread of unvalidated bodies; Zod strips unknown keys. |
@@ -200,7 +200,7 @@ A malicious localStorage value can only ever evaluate to the default `"all"`. No
 |---|---|---|---|---|
 | **F1** | Low | No automated check prevents string-concat SQL inside `repositories/`. | Open | Add an ESLint custom rule or CI grep to fail on `\`SELECT\b\|prepare\(\`` patterns. |
 | **F2** | Informational | The structured request logger does not include a request id / trace id. | Open | Add a `nanoid()`-based correlation-id middleware before observability tooling lands. |
-| **F3** | Informational | `cors({ origin: true })` fallback in `buildApp` reflects all origins when `corsOrigin` is empty. | New, this pass | Only triggered by tests; production always populates `corsOrigin`. Tighten by making the fallback `false` (deny-all) and forcing tests to pass an explicit allowlist. |
+| **F3** | Informational | `cors({ origin: true })` fallback in `buildApp` reflects all origins when `corsOrigin` is empty. | **Partially mitigated** — B1 now rejects empty `CORS_ORIGIN` at config-load in production, so the `origin: true` fallback can only be reached in non-production builds. Still open as a defensive-tightening item: make the fallback `false` (deny-all) and force tests to pass an explicit allowlist. |
 | **F4** | Informational | No backend rate limiting. | Open (out of scope v1) | Add `express-rate-limit` before any auth surface or multi-tenant access. |
 | **F5** | Informational | Test-time transitive deprecations of `glob` and `prebuild-install`. | Open | Bump `@vitest/coverage-v8` and `better-sqlite3` to latest patches in a maintenance PR. |
 | **F6** | Informational | `pendingDeletes` is a process-local module-level `Map`. | New, this pass | Not a security issue at v1; flag for v2 horizontal-scaling planning. If the backend is ever replicated, deferred deletes won't survive instance failover. Storing pending deletes in the DB (or accepting that undo is best-effort across restarts) would be the v2 design. |
@@ -276,3 +276,43 @@ grep -riE "password|secret|api[_-]?key|token|BEARER|Authorization:" --include='*
 ```
 
 **Verdict:** the security posture is **unchanged** from the 2026-05-11 refresh. The same 7 findings (F1–F7) remain open as informational items. No new findings.
+
+### 2026-05-12 (later same day) — post B1–B8 bug-fix round + NFR10 logger test + integration-coverage round + Batch A frontend tests
+
+A static review found 8 bug candidates (B1–B8); 7 made it into the codebase as fixes. Plus a logger test was added to close the NFR10 traceability lie, 6 new integration tests closed CORS / B2 race / B5 / helmet / no-op / combined-PATCH gaps, and 6 new frontend tests closed E3.S1 I1/I3/I4/U1/U2 + E3.S5 I1.
+
+| Change | Security relevance | Outcome |
+|---|---|---|
+| **B1** — `config.ts` now rejects empty `CORS_ORIGIN` in production (in addition to the existing `*` rejection) | **Direct security win.** Closes the trivial "set `CORS_ORIGIN=`" misconfiguration that would have made the `cors({ origin: true })` fallback live in production, reflecting any Origin. | F3 → **partially mitigated**. Test-mode fallback still exists; flagged for follow-up. |
+| **B2** — `Repository.update()` now checks `info.changes === 0` and returns null on race | Correctness, not security per se. Prevents the API from returning a 200 OK + fabricated row after a concurrent DELETE. No new attack surface; closes a "ghost-row" UX confusion. | No security finding. |
+| **B3** — `<TodoItem>` disables checkbox + delete while `todo.id.startsWith("temp-")` | Defensive UX; not security. Prevents the toggle.onError from clobbering a concurrent reconcile. | No security finding. |
+| **B4** — `clearCompleted.onMutate` cancels pendingDeletes for completed rows | Defensive; not security. Prevents the deferred per-row DELETE from 404ing after a bulk-delete. | No security finding. |
+| **B5** — `error-handler.ts` now returns `413 Request body too large` instead of `400` for `entity.too.large` | **Spec-correctness security win.** Body-size DoS protection still in force (`express.json({ limit: "16kb" })`); the response status now correctly reflects RFC 9110 §15.5.14. Closes a small debuggability gap (clients can distinguish "too big" from "malformed JSON"). | No new finding. |
+| **B6** — `TodoInput` clears the inline `role="alert"` on the next keystroke | A11y improvement (see `docs/qa/accessibility.md`). No security relevance. | No security finding. |
+| **B7** — Removed redundant `onRetry` from the App "Retrying…" toast | UX-only. No security relevance. | No security finding. |
+| **B8** — `index.ts` now installs SIGTERM/SIGINT handlers + drains via `server.close()` + `db.close()` | Operational hygiene. WAL checkpoints cleanly on container stop; no DB corruption window across `docker stop`. Not a security boundary, but reduces the surface where a hard kill could leave the WAL in an unrecoverable state. | No security finding. |
+| **NFR10 logger test** in `health.test.ts` | Closes a documentation lie (§5 of test-strategy.md previously claimed a logger test that didn't exist). The test spies on `process.stdout.write` — no production code change. | No security finding. The test asserts the documented log shape; if a future change adds sensitive data to log fields (e.g. request bodies), this test would still pass but should be extended. |
+| **CORS integration tests** (`tests/integration/todos.test.ts`) | Closes the B1 contract end-to-end. Sends preflight from an allowed origin → reflected header; sends GET from a disallowed origin → no Allow-Origin header echoed. The disallowed-origin path still returns the response body (it's the browser that enforces CORS), which is documented behavior and not a leakage path because no Authorization / cookie / session is in flight. | No new finding. |
+| **B2 HTTP-layer race test** | Closes the integration-level gate for the phantom-row 404. | No security finding. |
+| **`tests/integration/todos.test.ts` 413 test** | Closes the B5 spec-correctness gate. | No security finding. |
+| **`tests/integration/todos.test.ts` helmet-on-/api/todos test** | Pins the helmet contract on a second endpoint, preventing a future refactor from scoping helmet to a sub-router and silently dropping headers from `/api/todos`. | **Security gain** — strengthens the existing helmet defense in depth. |
+| **`tests/integration/todos.test.ts` combined-PATCH + no-op-timestamp tests** | Correctness, not security. The combined PATCH test pins the D2-era strip-undefined logic; the no-op test documents that `updated_at` advances even on no-op writes. | No security finding. |
+| **Batch A — 6 new frontend tests** (`EmptyState.test.tsx`, `Skeleton.test.tsx`, App loading + 3-todos + filter-Active, mutations Retry click) | Pure unit/integration tests of UI structure + behavior. No production code change. No new HTTP/storage/network surface introduced. | No security finding. |
+
+### Re-run of the §14 greps (2026-05-12, post Batch A)
+
+```bash
+grep -rE "dangerouslySetInnerHTML|innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(|new Function\(" frontend/src backend/src
+# → zero matches (unchanged)
+
+grep -rE "node-fetch|axios|got|undici|fetch\(|http\.request|http\.get|https\.request|https\.get" backend/src
+# → zero matches (unchanged)
+
+grep -rE "Object\.assign\(|\.\.\.(req\.body|body)|merge\(|deepMerge|deepClone" backend/src
+# → zero matches (unchanged)
+
+grep -riE "password|secret|api[_-]?key|token|BEARER|Authorization:" --include='*.{ts,tsx,js,json}' .
+# → only CSS-tokenizer false positives in package-lock.json (unchanged)
+```
+
+**Verdict:** posture **unchanged** modulo F3 partial mitigation. F1, F2, F4–F7 still open as informational items. No new findings. The B1 fix is the closest thing to a real security improvement in this round; the helmet-on-/api/todos integration test and the B5 status-code correction are defense-in-depth strengthening.
