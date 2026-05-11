@@ -227,8 +227,6 @@ These weren't bugs per se but they were debugging-in-spirit — finding gaps bet
 
 ## 5. Limitations Encountered
 
-This is the section worth reading carefully if you're picking up this project. Some of these are environment limits, some are limits of what Claude can do, some are both.
-
 ### What Claude couldn't do in this environment
 
 1. **Run anything that needed a real browser.** Playwright is wired and type-checks clean, but Claude couldn't `npx playwright install chromium` in the sandbox — no Chrome binary, no GPU, no headed mode. Same applies to Lighthouse and any Chrome DevTools MCP / Playwright MCP referenced in my task list. Every e2e and Lighthouse result needs a local run on my machine.
@@ -252,9 +250,10 @@ This project was small and rule-driven enough that a single Claude session could
 - **Knowing my local toolchain.** Homebrew Node / icu4c / nvm trade-offs are environmental knowledge — Claude has it from training, but I have it from my machine. My call to switch to nvm + Node 20 (vs the quicker `brew reinstall node`) is what eventually unblocked everything. Claude offered both; I picked the durable one.
 - **Recognizing scope creep.** Round four of the e2e iteration, a senior engineer might have said *"do we actually need a Playwright keyboard-Space test here? axe already verified semantic correctness; the activation event is verified by happy-path."* Claude eventually proposed restructuring along those lines but two rounds later than it should have. Scope-bounding under failure is a skill Claude does not yet have.
 
-### "next time" notes
+### "Next time" notes
 
 If this project gets a v1.x, the friction items worth addressing:
 
 - **Run Lighthouse + axe in CI.** Both currently require the running stack and Chrome on my laptop. Lighthouse-CI Action or Playwright-driven Lighthouse against the compose stack would fold them into the same `nfr7` CI job pattern that NFR7 now uses.
 - **Pre-commit hook for `npm run typecheck`.** Three of the seven sandbox-period bugs were caught by `tsc --noEmit`. Local pre-commit would catch them before a push.
+- **Postman MCP** Investigate use of Postman MCP for API validation
