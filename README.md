@@ -134,7 +134,7 @@ npm run dev:frontend         # http://localhost:5173 (proxies /api → backend)
 
 # E2E (Playwright auto-starts dev servers via webServer config)
 npx playwright install --with-deps chromium   # one-time
-npm run e2e                  # 19 cases incl. 12 axe scans + responsive viewports
+npm run e2e                  # 19 cases incl. 11 axe scans + responsive viewports
 
 # NFR7 budget check — boots the full Docker stack and fails if Compose
 # doesn't reach healthy within 60 s
@@ -213,7 +213,7 @@ Frontend (Vitest + RTL)       9      46     incl. ToastHost, pendingDeletes, api
                                             tab-order (NFR4), 3 state-coverage a11y tests
 E2E (Playwright)              8      19     smoke, happy-path, filter-persistence,
                                             undo-delete, delete-to-empty, error-rollback,
-                                            responsive (NFR3), a11y (12 axe scans)
+                                            responsive (NFR3), a11y (11 axe scans)
                               ---    ---
 Total                         23     115
 ```

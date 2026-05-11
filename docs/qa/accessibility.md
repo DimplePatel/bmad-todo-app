@@ -12,7 +12,7 @@
 | Measurement | Result | Source |
 |---|---|---|
 | **Lighthouse Accessibility score** | **100** | `lighthouse http://localhost:5173 --preset=desktop` |
-| **axe scans, serious/critical violations** | **0** across **12 scans** of 12 distinct UI states | `e2e/tests/a11y.spec.ts` + `e2e/tests/responsive.spec.ts` |
+| **axe scans, serious/critical violations** | **0** across **11 scans** of 11 distinct UI states (+ 1 keyboard-reachability test in the same suite) | `e2e/tests/a11y.spec.ts` + `e2e/tests/responsive.spec.ts` |
 | **Keyboard-only flow** | Passes — Tab reaches every focusable control; explicit tab-order verified | `App.test.tsx` "tab order traverses controls in visual order"; `a11y.spec.ts` "primary flow is keyboard-reachable" |
 | **WCAG 2.1 AA criteria** | All AA criteria applicable to a single-page form-driven app are met | See §6 below |
 
@@ -22,7 +22,7 @@ No high or critical findings. No medium findings open.
 
 ## 1. Automated scans
 
-### 1.1 axe-core scans (12 total, 7 + 5 responsive)
+### 1.1 axe-core scans (11 total, 6 + 5 responsive)
 
 axe runs inside a real Chromium browser at the end of each scenario. Failures threshold is `serious` or `critical` impact only — minor/cosmetic violations are reported via the detailed HTML output but don't fail the build.
 
@@ -34,14 +34,13 @@ axe runs inside a real Chromium browser at the end of each scenario. Failures th
 | `a11y.spec.ts` | Undo toast visible (`role="alert"` live region + Undo button) |
 | `a11y.spec.ts` | Inline form error (`role="alert"` + `aria-invalid` + `aria-describedby` linkage) |
 | `a11y.spec.ts` | Loading skeleton (`aria-busy="true"`) |
-| `a11y.spec.ts` | Primary flow is keyboard-reachable (Tab → input, focus → checkbox, toggle) |
 | `responsive.spec.ts` | 320 × 640 (mobile-narrow) |
 | `responsive.spec.ts` | 375 × 812 (mobile) |
 | `responsive.spec.ts` | 768 × 1024 (tablet) |
 | `responsive.spec.ts` | 1280 × 800 (desktop) |
 | `responsive.spec.ts` | 1920 × 1080 (wide) |
 
-The 5 responsive scans also assert `document.documentElement.scrollWidth ≤ clientWidth` so no horizontal overflow can occur at any tested width.
+The 5 responsive scans also assert `document.documentElement.scrollWidth ≤ clientWidth` so no horizontal overflow can occur at any tested width. The `a11y.spec.ts` "primary flow is keyboard-reachable" test lives in the same suite but does not run axe — it's a Tab-navigation test covered in §1.2 below.
 
 ### 1.2 Keyboard accessibility
 
@@ -94,7 +93,7 @@ For a single-page form-driven app, the AA criteria split into automated (verifie
 | **1.3.1** Info and Relationships | axe + code | semantic `<ul>`/`<li>`, real `<input type="checkbox">`, `<label htmlFor>` |
 | **1.3.2** Meaningful Sequence | code + tab-order test | DOM order matches visual order |
 | **1.4.1** Use of Color | code | completion uses strikethrough **and** color — not color alone |
-| **1.4.3** Contrast (Minimum) | axe (caught the original `--completed` violation) | 12 axe scans across viewports |
+| **1.4.3** Contrast (Minimum) | axe (caught the original `--completed` violation) | 11 axe scans across viewports |
 | **1.4.4** Resize Text up to 200 % | Lighthouse + manual | container uses `clamp()` / `min()`, no fixed font sizes |
 | **1.4.10** Reflow (no horizontal scroll at 320 px) | `responsive.spec.ts` | viewport sweep asserts `scrollWidth ≤ clientWidth` |
 | **1.4.11** Non-text Contrast | axe | UI components ≥ 3:1 |
@@ -145,9 +144,9 @@ None at serious/critical impact.
 ## 6. Re-running the report
 
 ```bash
-# 1. Run the automated suite (12 axe scans + tab-order + keyboard tests)
+# 1. Run the automated suite (11 axe scans + tab-order + keyboard tests)
 npm test --workspace=frontend          # 46 cases including tab-order
-npm run e2e                            # 19 cases including 12 axe scans
+npm run e2e                            # 19 cases including 11 axe scans
 
 # 2. Lighthouse against production build
 docker compose up --build -d

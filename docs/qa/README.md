@@ -8,7 +8,7 @@ This folder contains the four standing QA test reports for the Todo App. Each is
 |---|---|---|
 | [coverage.md](./coverage.md) | What % of source code is exercised by tests | **Frontend 89.03% lines / 95.23% functions**; backend gated at ≥ 80% lines (CI-enforced) |
 | [performance.md](./performance.md) | NFR1, NFR3, NFR7 — UI/API latency, responsive layout, container startup | Backend p99 = **11 ms** (autocannon 50c/30s); Lighthouse Performance 85 (dev), 95+ expected on prod build; NFR7 now CI-gated |
-| [accessibility.md](./accessibility.md) | WCAG 2.1 AA conformance via axe + Lighthouse + RTL keyboard tests | **Lighthouse Accessibility = 100**; **0 serious/critical axe violations** across **12 distinct UI states** |
+| [accessibility.md](./accessibility.md) | WCAG 2.1 AA conformance via axe + Lighthouse + RTL keyboard tests | **Lighthouse Accessibility = 100**; **0 serious/critical axe violations** across **11 distinct UI states** (+ 1 keyboard-reachability test) |
 | [security-review.md](./security-review.md) | XSS, SQL injection, CSRF, CORS, secrets, container hardening, dependencies | **0 high / 0 critical**; 7 informational items (F1–F7) all in the "v2 polish" bucket |
 
 For test design and strategy (pyramid, tooling, isolation rules, traceability), see [`docs/test-strategy.md`](../test-strategy.md). For the AI-collaboration retrospective behind these tests, see [`docs/ai-integration-log.md`](../ai-integration-log.md).
@@ -22,7 +22,7 @@ cd /Users/dimple/Documents/Claude/Projects/BMAD
 npm test --workspace=backend  -- --coverage
 npm test --workspace=frontend -- --coverage
 
-# 2. E2E (Playwright Chromium — 19 cases including 12 axe scans)
+# 2. E2E (Playwright Chromium — 19 cases including 11 axe scans)
 npx playwright install --with-deps chromium      # one-time
 npm run e2e
 
