@@ -218,7 +218,7 @@ These weren't bugs per se but they were debugging-in-spirit — finding gaps bet
 | **D-A7** | `clearCompleted` mutation test had a synchronous-assert-after-await timing race. | Replaced with Deferred pattern — server holds the response until the test releases it, asserts intermediate cache state in between. |
 
 ### Patterns I'd flag about Claude's debugging
-q
+
 - **D12 was Claude's code from the start.** Claude wrote the original `TodoItem.onDeleteClick` with the `useEffect`-cleanup-clears-timer pattern. A senior dev would have flagged "scheduling work in component state that's about to unmount" as a code smell on first read. Claude wrote it; Claude's own code review missed it; only a passing-then-failing e2e test caught it. This is the single biggest argument in this project for keeping the e2e gate non-optional.
 - **D13 cost two extra rounds because Claude misread the failure.** "Element not found" + "the previous run said `2 × locator resolved to ...unchecked`" should have been a hint that the *first* run was stale-element and *previous* runs were actually-not-toggling — two different bugs. Instead Claude assumed it was the same bug and kept proposing variations. Me pasting fresh output every time was the only thing that eventually surfaced the difference.
 - **The convergence asymmetry.** Claude's "try the next plausible fix" loop converges fast on familiar bugs and slowly on unfamiliar ones. Asking *"what new information is in this failure that wasn't in the last one?"* before proposing the next fix would have shortened both D13 and parts of D11.
