@@ -2,21 +2,6 @@
 
 A single-user Todo app built spec-first via the **BMAD-METHOD** (Breakthrough Method for Agile AI-Driven Development). The codebase is a working reference for what spec-driven delivery looks like end-to-end: PRD → architecture → sharded stories → implementation → QA — with every claim traceable to a test.
 
-## Status (last updated 2026-05-12)
-
-| Area | State |
-|---|---|
-| All 4 BMAD epics | ✅ Done (23 stories) |
-| Frontend tests | ✅ **46 / 46** passing — 89.03% line / 95.23% function coverage |
-| Backend tests | ✅ **47 / 47** passing locally — CI gate at ≥ 80% lines / functions / statements, ≥ 75% branches |
-| E2E tests | ✅ **19 / 19** passing (Playwright) including **12 axe scans** across distinct UI states |
-| TypeScript | ✅ All 3 workspaces (`backend`, `frontend`, `e2e`) clean under `strict` + `exactOptionalPropertyTypes` |
-| Security review | ✅ 0 high / 0 critical (last refreshed 2026-05-12) |
-| WCAG 2.1 AA | ✅ Lighthouse Accessibility = 100; **0 serious/critical axe violations** across 12 distinct UI states |
-| Performance | ✅ Backend p99 = 11 ms (autocannon, 50c/30s); Lighthouse Performance = 85 (dev), expected 95+ on production build |
-| Docker | ✅ Multi-stage, non-root, healthchecked, digest-pinned; `docker compose up --wait` lands within NFR7's 60 s budget |
-| CI | ✅ Wired — `.github/workflows/test.yml` runs lint + tsc + backend coverage gate + frontend coverage + Playwright on every push/PR. Separate `nfr7` job enforces the 60 s compose budget. |
-
 ## Tech stack
 
 - **Frontend:** React 18 + Vite + TypeScript, React Query for server state, MSW for tests
