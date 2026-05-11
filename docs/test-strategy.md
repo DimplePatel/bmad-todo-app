@@ -53,13 +53,6 @@ Source-code coverage numbers (per-file %s, remaining gaps, how to regenerate) li
 | E2E architecture | **POM + fixtures** | `e2e/pages/TodoPage.ts` + `e2e/tests/_fixtures.ts` — see §6 |
 | Locator hierarchy | **role > label > data-testid > CSS** | Playwright's recommended ordering; CSS only as last resort. `data-testid` on `EmptyState`, `TodoInput`'s error, `Footer`'s counter |
 
-Things this strategy does **not** rely on (called out for honesty — earlier drafts mentioned these but they were never wired):
-
-- ~~hadolint~~ — Dockerfile linter is not in the build pipeline.
-- ~~markdownlint-cli2~~ — markdown linter is not run anywhere.
-
-If you adopt either later, update this section.
-
 ---
 
 ## 3. Test Data & Isolation Rules
