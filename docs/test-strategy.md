@@ -29,13 +29,13 @@ Headline counts:
 |---|---|---:|---:|
 | Backend unit | Vitest | 3 | 25 |
 | Backend integration | Vitest + Supertest | 3 | 32 |
-| Frontend (unit + integration) | Vitest + RTL + MSW | 9 | 46 |
+| Frontend (unit + integration) | Vitest + RTL + MSW | 11 | 52 |
 | E2E (real browser) | Playwright + axe-playwright | 8 | 19 |
-| **Total** | — | **23** | **122** |
+| **Total** | — | **25** | **128** |
 
 Per-test → PRD requirement mapping lives in §11 of this document.
 
-Source-code coverage numbers (per-file %s, remaining gaps, how to regenerate) live in [`docs/qa/coverage.md`](qa/coverage.md). Headline: **89.03% frontend lines** measured, **≥ 80% backend lines** enforced by `backend/vitest.config.ts` + CI.
+Source-code coverage numbers (per-file %s, remaining gaps, how to regenerate) live in [`docs/qa/coverage.md`](qa/coverage.md). Headline: **90.28% frontend lines** measured, **≥ 80% backend lines** enforced by `backend/vitest.config.ts` + CI.
 
 ---
 
@@ -358,7 +358,7 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 
 ### 11.3 Frontend
 
-#### `frontend/src/__tests__/App.test.tsx` — 8 cases
+#### `frontend/src/__tests__/App.test.tsx` — 11 cases
 
 | Test | Requirements |
 |---|---|
@@ -370,6 +370,9 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `App > rejects titles longer than 200 characters with an inline error` | FR1, FR2 |
 | `App > tab order traverses controls in visual order (NFR4 / Story E4.S2 I1)` | NFR4 |
 | `App > shows an error toast with Retry on POST failure (then succeeds)` | FR11 |
+| `App > shows the loading skeleton while the initial fetch is in flight (E3.S1 I1)` | FR10 |
+| `App > renders three pre-existing todos by accessible name (E3.S1 I3)` | FR3, FR9 (populated path), NFR4 (role/name queries) |
+| `App > filtering by Active hides completed rows in the list (E3.S5 I1)` | FR7 |
 
 #### `frontend/src/__tests__/Filters.test.tsx` — 2 cases
 
@@ -403,7 +406,7 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `filterStore > readFilter falls back to 'all' when localStorage.getItem throws (e.g. private-browsing)` | FR7 (defensive) |
 | `filterStore > writeFilter swallows exceptions when localStorage.setItem throws` | FR7 (defensive) |
 
-#### `frontend/src/__tests__/mutations.test.tsx` — 4 cases
+#### `frontend/src/__tests__/mutations.test.tsx` — 5 cases
 
 | Test | Requirements |
 |---|---|
@@ -411,6 +414,7 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `Mutations: rollback + retry > toggle: server 404 on a stale row reverts the optimistic state and offers Retry` | FR4, FR11 |
 | `Mutations: rollback + retry > clear completed: optimistic removal + 500 rollback + retry succeeds` | FR8, FR11, NFR1 |
 | `App error state > shows error banner with Retry when initial fetch fails` | FR10, FR11 |
+| `App error state > Retry button re-runs the query and clears the banner on success (E3.S1 I4)` | FR10, FR11 |
 
 #### `frontend/src/__tests__/pendingDeletes.test.ts` — 8 cases (all plumbing for FR6)
 
@@ -448,6 +452,18 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `api client — handle() error branches > falls back to 'Request failed with status N' when the error body isn't JSON` | FR11 |
 | `api client — handle() error branches > uses the server's structured error message when present` | FR11 |
 | `api client — handle() error branches > api.remove returns undefined when the server replies 204 No Content` | FR6, FR12 |
+
+#### `frontend/src/__tests__/EmptyState.test.tsx` — 1 case
+
+| Test | Requirements |
+|---|---|
+| `<EmptyState /> (E3.S1 U1) > renders the hint text and announces it as a live status region` | FR9, NFR4 (live region for SR announcement) |
+
+#### `frontend/src/__tests__/Skeleton.test.tsx` — 1 case
+
+| Test | Requirements |
+|---|---|
+| `<Skeleton /> (E3.S1 U2) > renders an aria-busy list with three placeholder rows` | FR10, NFR4 (`aria-busy` for SR loading announcement) |
 
 ### 11.4 E2E (Playwright)
 
@@ -516,9 +532,9 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 |---|---:|---:|
 | Backend unit | 3 | 25 |
 | Backend integration | 3 | 32 |
-| Frontend | 9 | 46 |
+| Frontend | 11 | 52 |
 | E2E | 8 | 19 |
-| **Total** | **23** | **122** |
+| **Total** | **25** | **128** |
 
 ### 11.6 Requirements with no direct test
 

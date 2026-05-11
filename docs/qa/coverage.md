@@ -10,7 +10,7 @@
 
 | Layer | Lines | Functions | Branches | Statements | Gate? |
 |---|---:|---:|---:|---:|---|
-| **Frontend** | **89.03%** | **95.23%** | **83.52%** | **89.03%** | Measured in CI, no failing threshold |
+| **Frontend** | **90.28%** | **96.82%** | **83.69%** | **90.28%** | Measured in CI, no failing threshold |
 | **Backend** | **≥ 80%** (enforced) | ≥ 80% (enforced) | ≥ 75% (enforced) | ≥ 80% (enforced) | **Yes** — `backend/vitest.config.ts` thresholds + CI runs `--coverage` |
 | E2E | n/a | n/a | n/a | n/a | Journey coverage, not line coverage. 19 cases across 8 spec files map to FRs in test-strategy §11. |
 
@@ -23,9 +23,9 @@ Both gates pass on every CI run (`.github/workflows/test.yml`). Coverage reports
 ```
 File                          % Stmts  % Branch  % Funcs  % Lines   Uncovered
 ─────────────────────────────────────────────────────────────────────────────
-All files                       89.03     83.52    95.23    89.03
+All files                       90.28     83.69    96.82    90.28
  src
-  App.tsx                       86.04     69.23    50.00    86.04   39–44
+  App.tsx                      100.00     82.35   100.00   100.00   20, 50, 55 (branches)
   main.tsx                       0.00      0.00     0.00     0.00   1–23 (intentional)
  src/api
   todos.ts                     100.00    100.00   100.00   100.00
@@ -35,11 +35,11 @@ All files                       89.03     83.52    95.23    89.03
   Footer.tsx                   100.00    100.00   100.00   100.00
   Skeleton.tsx                 100.00    100.00   100.00   100.00
   ToastHost.tsx                100.00     96.15   100.00   100.00   line 33 branch
-  TodoInput.tsx                100.00    100.00   100.00   100.00
-  TodoItem.tsx                  76.62     78.57   100.00    76.62   52–70 (deferred-delete fail path)
+  TodoInput.tsx                100.00     92.85   100.00   100.00   line 42 branch (B6 short-circuit)
+  TodoItem.tsx                  78.04     68.75   100.00    78.04   61–79 (deferred-delete fail path)
   TodoList.tsx                 100.00    100.00   100.00   100.00
  src/hooks
-  useTodoMutations.ts          100.00     71.79   100.00   100.00   defensive `?? []` branches
+  useTodoMutations.ts          100.00     76.08   100.00   100.00   defensive `?? []` + B4 cancellation guard branches
   useTodos.ts                  100.00    100.00   100.00   100.00
  src/state
   filterStore.ts                92.30     80.00   100.00    92.30   15, 24 (empty catch bodies)
@@ -53,14 +53,17 @@ Backend per-file numbers vary by run (the local SQLite tests use temp paths); th
 | File / lines | Why uncovered | Where it IS covered |
 |---|---|---|
 | `frontend/src/main.tsx` (0%) | Bootstrap entry — runs against the real DOM only, no value in instrumenting. | n/a (intentional) |
-| `frontend/src/App.tsx:39–44` | The `Retry` button click handler inside the error banner. | Indirect: `mutations.test.tsx` asserts the banner appears; click path is sandbox-flaky. Caught by e2e if it ever broke. |
-| `frontend/src/components/TodoItem.tsx:52–70` | The `api.remove` **failure path** inside the deferred-delete scheduled callback. Requires advancing fake timers across React Query's mutation queue, which races in JSDOM. | `e2e/tests/undo-delete.spec.ts` runs with real timers against a real browser. |
+| `frontend/src/App.tsx:20, 50, 55` (branches) | Branch fall-throughs in the filter-by-completion ternary + the `(todos ?? []).length === 0` short-circuit + the `<Footer todos={todos ?? []} />` fallback. Each branch is exercised at least once across the suite (filter-by-Active, empty state, populated state) but the V8 coverage tool counts each conditional fork independently. | Functionally covered — see `App.test.tsx` empty/populated/filter tests. |
+| `frontend/src/components/TodoInput.tsx:42` (branch) | The `if (error) setError(null)` short-circuit in the `onChange` handler. The "no error to clear" branch (typing without a prior validation failure) isn't asserted explicitly — only the "clear-on-type" branch is exercised indirectly. | n/a — defensive branch for the B6 fix. |
+| `frontend/src/components/TodoItem.tsx:61–79` | The `api.remove` **failure path** inside the deferred-delete scheduled callback. Requires advancing fake timers across React Query's mutation queue, which races in JSDOM. (Line range shifted from 52–70 → 61–79 after the B3 `isPending` guard was added.) | `e2e/tests/undo-delete.spec.ts` runs with real timers against a real browser. |
 | `frontend/src/components/ToastHost.tsx:33` | Branch — the `Omit<Toast,"id">` spread where no `actionLabel` is provided. The other branch (with `actionLabel`) is covered. | n/a — defensive branch. |
-| `frontend/src/hooks/useTodoMutations.ts:55, 63, 77, 79, 84` | Defensive `?? []` fallbacks for the case where React Query returns `undefined` data. In practice this only happens before the first load. | n/a — defensive code; trying to contort tests to hit it isn't worth the noise. |
+| `frontend/src/hooks/useTodoMutations.ts` (branches at ~76%) | Defensive `?? []` fallbacks for the case where React Query returns `undefined` data + the B4 `if (t.completed) pendingDeletes.cancel(t.id)` guard for non-completed rows. In practice the `?? []` only triggers before the first load. | n/a — defensive code; trying to contort tests to hit every fork isn't worth the noise. |
 | `frontend/src/state/filterStore.ts:15, 24` | V8 coverage quirk — empty catch bodies (no executable statements) aren't credited even when entered. The tests **do** exercise them (`filterStore.test.ts` "readFilter falls back" / "writeFilter swallows"). | `filterStore.test.ts` — verified the catch path runs without crashing. |
 | `frontend/src/test/server.ts` (~71%) | MSW handler implementation for tests. Not production code; not all 400/404 branches are exercised by every spec. | n/a — defensive test scaffolding. |
 
-The most consequential gap is `TodoItem.tsx:52–70`, the deferred-delete failure path. That code IS exercised end-to-end (Playwright `undo-delete.spec.ts`), just not at the unit layer. We accepted this trade-off when documenting D5 in [`docs/ai-integration-log.md`](../ai-integration-log.md).
+The most consequential gap is `TodoItem.tsx:61–79`, the deferred-delete failure path. That code IS exercised end-to-end (Playwright `undo-delete.spec.ts`), just not at the unit layer. We accepted this trade-off when documenting D5 in [`docs/ai-integration-log.md`](../ai-integration-log.md).
+
+**Closed since the previous measurement:** `App.tsx:39–44` (the error-banner Retry click handler) is now covered by `mutations.test.tsx` "Retry button re-runs the query and clears the banner on success (E3.S1 I4)". `App.tsx` jumped from 86.04% lines to 100%.
 
 ---
 

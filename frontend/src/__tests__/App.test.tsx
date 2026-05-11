@@ -266,4 +266,101 @@ describe("App", () => {
     expect(await screen.findByText("after retry")).toBeInTheDocument();
     expect(calls).toBe(2);
   });
+
+  it("shows the loading skeleton while the initial fetch is in flight (E3.S1 I1)", async () => {
+    // Hold the initial GET open so React Query stays in `isLoading`. The
+    // skeleton's <ul aria-busy="true" aria-label="Loading todos"> should be
+    // mounted in that window; once we release the response, the skeleton
+    // should be replaced by either the empty state or the populated list.
+    let releaseGet!: () => void;
+    const held = new Promise<void>((resolve) => {
+      releaseGet = resolve;
+    });
+    server.use(
+      http.get("/api/todos", async () => {
+        await held;
+        return HttpResponse.json([]);
+      })
+    );
+
+    renderWithProviders(<App />);
+
+    // Skeleton is visible and announces itself as a busy region.
+    const skeleton = await screen.findByLabelText("Loading todos");
+    expect(skeleton).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByText(/nothing to do yet/i)).not.toBeInTheDocument();
+
+    // Release the response → empty state replaces the skeleton.
+    releaseGet();
+    expect(
+      await screen.findByText(/nothing to do yet/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Loading todos")).not.toBeInTheDocument();
+  });
+
+  it("renders three pre-existing todos by accessible name (E3.S1 I3)", async () => {
+    // Story spec: "mock 3 todos; assert each item renders by accessible
+    // name." Seeds the MSW store directly so the very first GET returns
+    // the populated list — that's the case the spec wants to lock down.
+    const now = new Date().toISOString();
+    resetStore([
+      { id: "a", title: "first task", completed: false, createdAt: now, updatedAt: now },
+      { id: "b", title: "second task", completed: false, createdAt: now, updatedAt: now },
+      { id: "c", title: "third task", completed: true, createdAt: now, updatedAt: now },
+    ]);
+    renderWithProviders(<App />);
+
+    expect(
+      await screen.findByRole("checkbox", {
+        name: /mark "first task" as complete/i,
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", {
+        name: /mark "second task" as complete/i,
+      })
+    ).toBeInTheDocument();
+    // The completed row's aria-label flips to "as active" once it's checked.
+    expect(
+      screen.getByRole("checkbox", {
+        name: /mark "third task" as active/i,
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Delete "first task"$/ })
+    ).toBeInTheDocument();
+  });
+
+  it("filtering by Active hides completed rows in the list (E3.S5 I1)", async () => {
+    // Story spec: "Default render shows All chip pressed; clicking Active
+    // hides completed rows." The filter logic lives in App.tsx as a useMemo
+    // — this test exercises it at the RTL layer (the equivalent e2e check
+    // in filter-persistence.spec.ts covers persistence + reload).
+    const now = new Date().toISOString();
+    resetStore([
+      { id: "a", title: "active task", completed: false, createdAt: now, updatedAt: now },
+      { id: "b", title: "done task", completed: true, createdAt: now, updatedAt: now },
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    // Default (All filter) — both rows visible.
+    expect(await screen.findByText("active task")).toBeInTheDocument();
+    expect(screen.getByText("done task")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^All$/ })
+    ).toHaveAttribute("aria-pressed", "true");
+
+    // Click Active — completed row disappears from the list (anchored
+    // regex so we don't accidentally hit the delete button's "active task"
+    // label).
+    await user.click(screen.getByRole("button", { name: /^Active$/ }));
+    await waitFor(() =>
+      expect(screen.queryByText("done task")).not.toBeInTheDocument()
+    );
+    expect(screen.getByText("active task")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Active$/ })
+    ).toHaveAttribute("aria-pressed", "true");
+  });
 });

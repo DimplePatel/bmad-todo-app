@@ -163,4 +163,52 @@ describe("App error state", () => {
       screen.getByRole("button", { name: /retry/i })
     ).toBeInTheDocument();
   });
+
+  it("Retry button re-runs the query and clears the banner on success (E3.S1 I4)", async () => {
+    // Story spec: "mock a 500; assert the toast appears with `Retry`;
+    // clicking Retry triggers another fetch (assert MSW saw 2 requests)."
+    //
+    // The existing test above asserts the banner appears. This one closes
+    // the second half of I4 — that clicking Retry actually re-issues the
+    // GET and the UI recovers.
+    let calls = 0;
+    resetStore([]);
+    server.use(
+      http.get("/api/todos", () => {
+        calls++;
+        if (calls === 1) {
+          return HttpResponse.json({ error: "boom" }, { status: 500 });
+        }
+        // Second call succeeds → empty list.
+        return HttpResponse.json([]);
+      })
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    // First call failed → banner is up.
+    expect(
+      await screen.findByText(/couldn't load your todos/i)
+    ).toBeInTheDocument();
+    expect(calls).toBe(1);
+
+    // Click the banner's Retry button. There are two "Retry" buttons in
+    // flight here — the banner's and the (briefly-mounted) toast's. Scope
+    // to the banner by querying within its `role="alert"` region.
+    const banner = screen.getByRole("alert");
+    await user.click(
+      // `within(banner)`-equivalent — the banner's Retry button is the
+      // first/only one inside the error-banner region.
+      banner.querySelector<HTMLButtonElement>("button")!
+    );
+
+    // Second GET fires and resolves to []; banner is gone, empty state shows.
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/couldn't load your todos/i)
+      ).not.toBeInTheDocument()
+    );
+    expect(calls).toBe(2);
+    expect(screen.getByText(/nothing to do yet/i)).toBeInTheDocument();
+  });
 });

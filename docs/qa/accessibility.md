@@ -145,7 +145,7 @@ None at serious/critical impact.
 
 ```bash
 # 1. Run the automated suite (11 axe scans + tab-order + keyboard tests)
-npm test --workspace=frontend          # 46 cases including tab-order
+npm test --workspace=frontend          # 52 cases including tab-order
 npm run e2e                            # 19 cases including 11 axe scans
 
 # 2. Lighthouse against production build
