@@ -35,7 +35,7 @@ Headline counts:
 
 Per-test → PRD requirement mapping lives in §11 of this document.
 
-Source-code coverage numbers (per-file %s, remaining gaps, how to regenerate) live in [`docs/qa/coverage.md`](qa/coverage.md). Headline: **90.28% frontend lines** measured, **≥ 80% backend lines** enforced by `backend/vitest.config.ts` + CI.
+Source-code coverage numbers (per-file %s, remaining gaps, how to regenerate) live in [`docs/qa/coverage.md`](qa/coverage.md). Headline: **90.90% frontend lines** measured, **≥ 80% backend lines** enforced by `backend/vitest.config.ts` + CI.
 
 ---
 

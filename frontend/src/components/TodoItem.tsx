@@ -35,17 +35,26 @@ export function TodoItem({ todo }: { todo: Todo }): JSX.Element {
       (curr ?? []).filter((t) => t.id !== todo.id)
     );
 
+    // Restore the row to the cache if it isn't already there. Captured by
+    // both the Undo handler and the deferred-DELETE failure path so the
+    // "row reappears" semantics live in one place. A future change (e.g.
+    // preserve the row's original index instead of prepending) lands here
+    // once instead of in two sibling blocks.
+    const restoreRow = () => {
+      qc.setQueryData<Todo[]>(TODOS_KEY, (curr) => {
+        const list = curr ?? [];
+        if (list.some((t) => t.id === todo.id)) return list;
+        return [todo, ...list];
+      });
+    };
+
     let undone = false;
     let toastId = "";
 
     const undoHandler = () => {
       undone = true;
       pendingDeletes.cancel(todo.id);
-      qc.setQueryData<Todo[]>(TODOS_KEY, (curr) => {
-        const list = curr ?? [];
-        if (list.some((t) => t.id === todo.id)) return list;
-        return [todo, ...list];
-      });
+      restoreRow();
       dismiss(toastId);
     };
 
@@ -63,11 +72,7 @@ export function TodoItem({ todo }: { todo: Todo }): JSX.Element {
           await api.remove(todo.id);
         } catch (err) {
           // DELETE failed — restore the row and surface the error.
-          qc.setQueryData<Todo[]>(TODOS_KEY, (curr) => {
-            const list = curr ?? [];
-            if (list.some((t) => t.id === todo.id)) return list;
-            return [todo, ...list];
-          });
+          restoreRow();
           push({
             message: `Couldn't delete "${todo.title}". ${
               (err as Error).message

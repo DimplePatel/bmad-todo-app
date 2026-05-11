@@ -6,7 +6,7 @@ This folder contains the four standing QA test reports for the Todo App. Each is
 
 | Report | What it covers | Headline |
 |---|---|---|
-| [coverage.md](./coverage.md) | What % of source code is exercised by tests | **Frontend 90.28% lines / 96.82% functions**; backend gated at ≥ 80% lines (CI-enforced) |
+| [coverage.md](./coverage.md) | What % of source code is exercised by tests | **Frontend 90.90% lines / 96.87% functions**; backend gated at ≥ 80% lines (CI-enforced) |
 | [performance.md](./performance.md) | NFR1, NFR3, NFR7 — UI/API latency, responsive layout, container startup | Backend p99 = **11 ms** (autocannon 50c/30s); Lighthouse Performance 85 (dev), 95+ expected on prod build; NFR7 now CI-gated |
 | [accessibility.md](./accessibility.md) | WCAG 2.1 AA conformance via axe + Lighthouse + RTL keyboard tests | **Lighthouse Accessibility = 100**; **0 serious/critical axe violations** across **11 distinct UI states** (+ 1 keyboard-reachability test) |
 | [security-review.md](./security-review.md) | XSS, SQL injection, CSRF, CORS, secrets, container hardening, dependencies | **0 high / 0 critical**; 7 informational items (F1–F7) all in the "v2 polish" bucket |

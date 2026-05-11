@@ -76,7 +76,7 @@ This session ran with a broad MCP catalogue available but Claude used only a nar
 
 The single most valuable property of bash in this session was *failing fast*: every code change Claude made was followed by a `tsc --noEmit` or `vitest run` in a scratch dir before it told me "this is ready." That caught D2 (Zod-vs-exactOptionalPropertyTypes), D4 (axe-playwright type drift), and a handful of typos. Without bash, those would have shipped to me as broken instructions.
 
-Bash also did real measurement work — the `autocannon` results (5.04 ms avg latency, 11 ms p99, ~9k req/s) come from a live local run, *not* from estimation. `vitest --coverage` produced the 90.28% / 96.82% / 83.69% headline numbers in `coverage.md` directly; those weren't guessed. The compose-up-time script (`scripts/test-compose-up-time.sh`) is a small bash artifact that times `docker compose up --build --wait --wait-timeout 60` and fails the build on overrun — that's NFR7 gated by CI now.
+Bash also did real measurement work — the `autocannon` results (5.04 ms avg latency, 11 ms p99, ~9k req/s) come from a live local run, *not* from estimation. `vitest --coverage` produced the 90.90% / 96.87% / 83.78% headline numbers in `coverage.md` directly; those weren't guessed. The compose-up-time script (`scripts/test-compose-up-time.sh`) is a small bash artifact that times `docker compose up --build --wait --wait-timeout 60` and fails the build on overrun — that's NFR7 gated by CI now.
 
 ### What `workspace.bash` *couldn't* do once the work moved to my machine
 
