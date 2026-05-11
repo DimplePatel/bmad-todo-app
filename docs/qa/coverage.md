@@ -12,7 +12,7 @@
 |---|---:|---:|---:|---:|---|
 | **Frontend** | **89.03%** | **95.23%** | **83.52%** | **89.03%** | Measured in CI, no failing threshold |
 | **Backend** | **≥ 80%** (enforced) | ≥ 80% (enforced) | ≥ 75% (enforced) | ≥ 80% (enforced) | **Yes** — `backend/vitest.config.ts` thresholds + CI runs `--coverage` |
-| E2E | n/a | n/a | n/a | n/a | Journey coverage, not line coverage. 19 specs map to FRs in test-strategy §11. |
+| E2E | n/a | n/a | n/a | n/a | Journey coverage, not line coverage. 19 cases across 8 spec files map to FRs in test-strategy §11. |
 
 Both gates pass on every CI run (`.github/workflows/test.yml`). Coverage reports are uploaded as build artifacts and retained for 7 days.
 

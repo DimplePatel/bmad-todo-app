@@ -1,7 +1,7 @@
 # Todo App — Test Strategy
 
 **First written:** 2026-05-01
-**Last refreshed:** 2026-05-11 — corrects stale claims, adds POM architecture + caught-bug log, removes aspirational items that were never wired
+**Last refreshed:** 2026-05-12 — corrects stale claims, adds POM architecture + caught-bug log, removes aspirational items that were never wired, reflects CI + NFR7 `.env` self-provisioning
 **Author:** BMAD QA persona (in collaboration with Architect)
 **Status:** v1.1 — applies to v1 release
 
@@ -72,36 +72,32 @@ Source-code coverage numbers (per-file %s, remaining gaps, how to regenerate) li
 
 ## 4. CI Flow
 
-**Current state: GitHub Actions workflow lives at [`.github/workflows/test.yml`](../.github/workflows/test.yml)** and runs on every push to `main` and on every PR. Two jobs run in parallel: the main `test` job (lint → typecheck → unit/integration with `--coverage` gate → Playwright E2E + artifact upload) and a separate `nfr7` job (the `docker compose up --wait` budget check). Job graph:
-
-Recommended graph when CI is added:
+GitHub Actions workflow: [`.github/workflows/test.yml`](../.github/workflows/test.yml). Runs on every push to `main` and on every PR. Two jobs run in parallel — neither depends on the other, which keeps total wall-clock time short:
 
 ```
-┌──────────────┐   ┌────────────────────┐   ┌──────────────────┐
-│ install +    │ → │ lint + typecheck   │ → │ unit + integ.    │
-│ cache deps   │   │ (eslint, tsc)      │   │ (vitest --coverage)│
-└──────────────┘   └────────────────────┘   └──────────────────┘
-                                                       │
-                                                       ▼
-                                          ┌──────────────────────┐
-                                          │ docker compose up    │
-                                          │ --wait (--profile test) │
-                                          └──────────────────────┘
-                                                       │
-                                                       ▼
-                                          ┌──────────────────────┐
-                                          │ playwright test      │
-                                          │ (HTML report artifact) │
-                                          └──────────────────────┘
+┌─────────────────────────────────────────────┐       ┌────────────────────────────┐
+│ test  (runs-on: ubuntu-latest, ≤ 15 min)    │       │ nfr7  (runs-on: ubuntu-    │
+│                                              │       │       latest, ≤ 3 min)     │
+│  1. checkout + Node 20 + npm ci             │       │                            │
+│  2. eslint                                   │       │  bash scripts/             │
+│  3. tsc --noEmit  (backend / frontend / e2e)│       │    test-compose-up-time.sh │
+│  4. vitest --coverage  (backend → GATE)     │       │                            │
+│  5. vitest --coverage  (frontend, measured) │       │  docker compose up --build │
+│  6. playwright install --with-deps chromium │       │    --wait --wait-timeout 60│
+│     (cached at ~/.cache/ms-playwright)      │       │                            │
+│  7. npm run e2e   (Playwright Chromium)     │       │  Self-provisions .env from │
+│  8. upload playwright-report (7d retention) │       │    .env.example if missing │
+│  9. upload coverage-reports (7d retention)  │       │                            │
+└─────────────────────────────────────────────┘       └────────────────────────────┘
 ```
 
-A failure at any stage fails the build. Coverage thresholds in `backend/vitest.config.ts` enforce ≥ 80% lines once `--coverage` is run.
+A failure at any step fails the build. Coverage thresholds in `backend/vitest.config.ts` (≥ 80% lines / functions / statements, ≥ 75% branches) trip on every `--coverage` run — closing **NFR6**. The `nfr7` job closes **NFR7** by failing if `docker compose up --wait` doesn't reach healthy within 60 s.
 
-**Caveats for whoever wires CI:**
+**Notes for anyone extending the workflow:**
 
-- `better-sqlite3` is a native module. CI runner needs a working compiler (`node-gyp`'s build deps) OR network access to fetch prebuilt binaries from GitHub releases. GitHub Actions' `ubuntu-latest` works out of the box.
-- Playwright needs Chromium installed. Use `npx playwright install --with-deps chromium` once per runner cache key.
-- The `e2e` workspace pulls in ~250 MB of browser binaries on first install. Cache them by `~/.cache/ms-playwright`.
+- `better-sqlite3` is a native module. GitHub Actions' `ubuntu-latest` has a working compiler out of the box; other runners may need `node-gyp`'s build deps or network access to fetch prebuilt binaries.
+- Playwright pulls ~250 MB of browser binaries on first install. The workflow caches them by `~/.cache/ms-playwright` keyed on `package-lock.json`.
+- The `nfr7` job runs in parallel with `test`, in a separate runner, because both compete for ports/Docker on a single runner. If you want to merge them, run the NFR7 check **after** the Playwright step (Playwright's `webServer` ties up 5173/3001).
 
 ---
 

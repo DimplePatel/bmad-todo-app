@@ -100,7 +100,7 @@ AI generated every test file in this repo — all 23 files, all 112 cases. Patte
 - **Page Object Model refactor for e2e.** Once the spec count crossed ~12, the test files were carrying too much DOM detail. POM (`TodoPage`, `TodoRow`, fixtures) moved locators behind named methods (`page.addTodo("buy milk")`, `row.toggle()`) while keeping assertions in the spec files. The "assertions back in the spec files" direction came from the user; my first POM cut had hidden them behind `expectVisible()` helpers, which made test intent harder to read.
 - **`data-testid` locator hierarchy.** After the user invoked Playwright best practices, I established a strict priority: `getByRole` first, `getByLabel` second, `getByTestId` only when role/label can't disambiguate (e.g. wrapping `<li>` elements with multiple buttons). Added `data-testid` to ~12 elements in the React layer; updated POM to prefer role/label and fall back to testid.
 
-### What AI missed (categories worth remembering)
+### What AI missed
 
 These are the gaps that showed up across multiple files. Listing them by *category* so the next person knows where to look harder:
 
@@ -209,7 +209,6 @@ This project was small and rule-driven enough that a single Claude session could
 
 If this project gets a v1.x, the friction items worth addressing:
 
-- **Reproducible toolchain.** Three independent Node-on-macOS issues in one session (D8, D9, D10) say "it works on my machine" is a property of the project + Node version + Homebrew state + npm registry + corporate proxy, not the project alone. Devcontainers, asdf, or Volta would erase most of that.
 - **Trace surfacing for e2e MCP.** A Playwright or Chrome DevTools MCP that pipes `aria-snapshot` + screenshot + last-100-network-lines into the agent context on test failure would shorten e2e debug rounds by ~half, based on this session's experience.
 - **Run Lighthouse + axe in CI.** Both currently require the running stack and Chrome on the user's laptop. Lighthouse-CI Action or Playwright-driven Lighthouse against the compose stack would fold them into the same `nfr7` CI job pattern that NFR7 now uses.
 - **Pre-commit hook for `npm run typecheck`.** Three of the seven sandbox-period bugs were caught by `tsc --noEmit`. Local pre-commit would catch them before a push.
