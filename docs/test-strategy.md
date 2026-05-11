@@ -318,7 +318,7 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | `notFoundHandler (unknown routes) > POST to an unknown route also yields 404` | FR13 |
 | `requestLogger (NFR10) > emits exactly one JSON line per request with required fields` | NFR10 |
 
-#### `backend/tests/integration/todos.test.ts` — 27 cases (+ 2 in the sibling CORS describe — see below)
+#### `backend/tests/integration/todos.test.ts` — 27 cases (25 in the `Todos API` describe + 2 in the sibling `CORS allowlist (NFR9, B1)` describe)
 
 | Test | Requirements |
 |---|---|
@@ -451,7 +451,7 @@ Some tests are flagged "Defensive" or "Plumbing" — they verify implementation 
 | Test | Requirements |
 |---|---|
 | `api client — handle() error branches > falls back to 'Request failed with status N' when the error body isn't JSON` | FR11 |
-| `api client — handle() error branches > uses the server's structured error message when present` | FR11 |
+| `api client — handle() error branches > uses the server's structured `error` message when present` | FR11 |
 | `api client — handle() error branches > api.remove returns undefined when the server replies 204 No Content` | FR6, FR12 |
 
 #### `frontend/src/__tests__/EmptyState.test.tsx` — 1 case
